@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ template.name }} — {{ cfg.tenant_name }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    :root {
+      --primary: {{ cfg.primary_color or '#2563EB' }};
+      --primary-dark: color-mix(in srgb, {{ cfg.primary_color or '#2563EB' }} 80%, black);
+      --primary-light: color-mix(in srgb, {{ cfg.primary_color or '#2563EB' }} 10%, white);
+    }
+  </style>
+</head>
+<body>
+  <div class="fill-page">
+    <!-- Header -->
+    <header class="fill-header">
+      <div class="fill-header-brand">
+        {% if cfg.logo_url %}
+          <img src="{{ cfg.logo_url }}" alt="{{ cfg.tenant_name }}" class="fill-header-logo">
+        {% else %}
+          <div class="topbar-logo-placeholder" style="width:28px;height:28px;font-size:12px;border-radius:7px;">
+            {{ cfg.tenant_name[0] | upper }}
+          </div>
+        {% endif %}
+        <span class="fill-header-title">{{ cfg.tenant_name }}</span>
+      </div>
+    </header>
+
+    <!-- Flash messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div style="max-width:600px;margin:16px auto 0;padding:0 24px;">
+          <ul class="flash-list">
+            {% for category, message in messages %}
+              <li class="flash flash-{{ category }}">
+                {% if category == 'success' %}<i data-lucide="check" style="width:14px;height:14px;vertical-align:-2px;"></i>{% elif category == 'error' %}<i data-lucide="x" style="width:14px;height:14px;vertical-align:-2px;"></i>{% else %}<i data-lucide="info" style="width:14px;height:14px;vertical-align:-2px;"></i>{% endif %}
+                {{ message }}
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <!-- Main content -->
+    <div class="fill-body">
+      <div class="fill-card">
+        <h1 class="fill-card-title">{{ template.name }}</h1>
+        {% if token.description %}
+          <p class="fill-card-desc">{{ token.description }}</p>
+        {% elif template.description %}
+          <p class="fill-card-desc">{{ template.description }}</p>
+        {% else %}
+          <p class="fill-card-desc">Vul onderstaande velden in en verstuur het formulier.</p>
+        {% endif %}
+
+        {% if fields %}
+          <form method="post" action="{{ url_for('fill_external', token_id=token.id) }}" novalidate>
+            {% for field in fields %}
+              <div class="form-group">
+                <label class="form-label" for="field_{{ field.name }}">
+                  {{ field.label or field.name }}
+                  {% if field.required %}<span class="required">*</span>{% endif %}
+                </label>
+
+                {% set prefill_val = prefill.get(field.name, '') %}
+
+                {% if field.type == 'textarea' %}
+                  <textarea
+                    id="field_{{ field.name }}"
+                    name="{{ field.name }}"
+                    class="form-control"
+                    rows="4"
+                    {% if field.required %}required{% endif %}
+                    placeholder="{{ field.label or field.name }}"
+                  >{{ prefill_val }}</textarea>
+
+                {% elif field.type == 'date' %}
+                  <input
+                    type="date"
+                    id="field_{{ field.name }}"
+                    name="{{ field.name }}"
+                    class="form-control"
+                    value="{{ prefill_val }}"
+                    {% if field.required %}required{% endif %}
+                  >
+
+                {% elif field.type == 'number' %}
+                  <input
+                    type="number"
+                    id="field_{{ field.name }}"
+                    name="{{ field.name }}"
+                    class="form-control"
+                    value="{{ prefill_val }}"
+                    {% if field.required %}required{% endif %}
+                    placeholder="0"
+                  >
+
+                {% elif field.type == 'email' %}
+                  <input
+                    type="email"
+                    id="field_{{ field.name }}"
+                    name="{{ field.name }}"
+                    class="form-control"
+                    value="{{ prefill_val }}"
+                    {% if field.required %}required{% endif %}
+                    placeholder="naam@voorbeeld.nl"
+                  >
+
+                {% elif field.type == 'dropdown' %}
+                  <select
+                    id="field_{{ field.name }}"
+                    name="{{ field.name }}"
+                    class="form-control"
+                    {% if field.required %}required{% endif %}
+                  >
+                    <option value="">— Kies een optie —</option>
+                    {% for opt in (field.options or '').split(',') %}
+                      {% if opt.strip() %}
+                        <option value="{{ opt.strip() }}" {% if opt.strip() == prefill_val %}selected{% endif %}>
+                          {{ opt.strip() }}
+                        </option>
+                      {% endif %}
+                    {% endfor %}
+                  </select>
+
+                {% else %}
+                  <input
+                    type="text"
+                    id="field_{{ field.name }}"
+                    name="{{ field.name }}"
+                    class="form-control"
+                    value="{{ prefill_val }}"
+                    {% if field.required %}required{% endif %}
+                    placeholder="{{ field.label or field.name }}"
+                  >
+                {% endif %}
+              </div>
+            {% endfor %}
+
+            <div style="margin-top:24px;">
+              <button type="submit" class="btn btn-primary btn-full">
+                Formulier versturen <i data-lucide="arrow-right" style="width:15px;height:15px;vertical-align:-2px;margin-left:4px;"></i>
+              </button>
+              <p style="font-size:12px;color:var(--muted);text-align:center;margin-top:12px;">
+                Je kunt dit formulier slechts één keer versturen.
+              </p>
+            </div>
+          </form>
+        {% else %}
+          <div class="empty-state">
+            <div class="empty-state-icon">🔲</div>
+            <div class="empty-state-title">Geen velden</div>
+            <div class="empty-state-body">Dit formulier bevat nog geen invulvelden.</div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <footer style="text-align:center;padding:20px;font-size:12px;color:var(--muted);">
+      {{ cfg.tenant_name }}
+    </footer>
+  </div>
+  <script>lucide.createIcons();</script>
+</body>
+</html>

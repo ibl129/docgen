@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Inloggen — {{ cfg.tenant_name }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    :root {
+      --primary: {{ cfg.primary_color or '#2563EB' }};
+      --primary-dark: color-mix(in srgb, {{ cfg.primary_color or '#2563EB' }} 80%, black);
+      --primary-light: color-mix(in srgb, {{ cfg.primary_color or '#2563EB' }} 10%, white);
+    }
+  </style>
+</head>
+<body>
+  <div class="login-page">
+    <div class="login-card">
+      <div class="login-brand">
+        {% if cfg.logo_url %}
+          <img src="{{ cfg.logo_url }}" alt="{{ cfg.tenant_name }}" class="login-logo">
+        {% else %}
+          <div class="login-logo-placeholder">{{ cfg.tenant_name[0] | upper }}</div>
+        {% endif %}
+        <div>
+          <div class="login-tenant-name">{{ cfg.tenant_name }}</div>
+          <div class="login-subtitle">Documenten genereren</div>
+        </div>
+      </div>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <ul class="flash-list" style="margin-bottom:20px;">
+            {% for category, message in messages %}
+              <li class="flash flash-{{ category }}">
+                {% if category == 'success' %}✓{% elif category == 'error' %}✕{% else %}ℹ{% endif %}
+                {{ message }}
+              </li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      {% endwith %}
+
+      <form method="post" action="{{ url_for('login') }}">
+        <div class="form-group">
+          <label class="form-label" for="code">Toegangscode</label>
+          <input
+            type="password"
+            id="code"
+            name="code"
+            class="form-control"
+            placeholder="Voer je toegangscode in"
+            autocomplete="current-password"
+            autofocus
+            required
+          >
+        </div>
+        <button type="submit" class="btn btn-primary btn-full">Inloggen</button>
+      </form>
+    </div>
+  </div>
+</body>
+</html>

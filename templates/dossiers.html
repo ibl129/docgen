@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Dossiers — {{ cfg.tenant_name }}{% endblock %}
+
+{% block content %}
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Dossiers</h1>
+      <p class="page-subtitle">Groepeer meerdere sjablooninvullingen voor één situatie en deel ze extern.</p>
+    </div>
+    <div class="page-actions">
+      <a href="{{ url_for('dossier_nieuw') }}" class="btn btn-primary">+ Nieuw dossier</a>
+    </div>
+  </div>
+
+  {% if dossiers %}
+    <div class="dossier-grid">
+      {% for dos in dossiers %}
+        <a href="{{ url_for('dossier_detail', dossier_id=dos.id) }}" class="dossier-card">
+          <div class="dossier-card-header">
+            <div class="dossier-card-icon"><i data-lucide="folder"></i></div>
+            <span class="badge badge-dossier-{{ dos.status }}">
+              {% if dos.status == 'afgerond' %}<i data-lucide="check" style="width:12px;height:12px;vertical-align:-1px;"></i> Afgerond{% else %}<i data-lucide="circle" style="width:10px;height:10px;vertical-align:-1px;"></i> Concept{% endif %}
+            </span>
+          </div>
+          <div class="dossier-card-name">{{ dos.naam }}</div>
+          {% if dos.omschrijving %}
+            <div class="dossier-card-desc">{{ dos.omschrijving }}</div>
+          {% endif %}
+          <div class="dossier-card-meta">
+            <span>{{ dos.invulling_count }} invulling{% if dos.invulling_count != 1 %}en{% endif %}</span>
+            <span>·</span>
+            <span>{{ dos.created_at[:10] if dos.created_at else '—' }}</span>
+          </div>
+        </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="card">
+      <div class="empty-state">
+        <div class="empty-state-icon"><i data-lucide="folder-open"></i></div>
+        <div class="empty-state-title">Nog geen dossiers</div>
+        <div class="empty-state-body">
+          Maak een dossier aan om meerdere sjablooninvullingen te groeperen.<br>
+          <a href="{{ url_for('dossier_nieuw') }}" style="margin-top:12px;display:inline-flex;align-items:center;gap:6px;">Eerste dossier aanmaken <i data-lucide="arrow-right" style="width:14px;height:14px;"></i></a>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

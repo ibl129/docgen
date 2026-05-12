@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bedankt — {{ cfg.tenant_name }}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    :root {
+      --primary: {{ cfg.primary_color or '#2563EB' }};
+      --primary-dark: color-mix(in srgb, {{ cfg.primary_color or '#2563EB' }} 80%, black);
+      --primary-light: color-mix(in srgb, {{ cfg.primary_color or '#2563EB' }} 10%, white);
+    }
+  </style>
+</head>
+<body>
+  <div class="thanks-wrap">
+    <div class="thanks-card">
+      <div class="thanks-icon">✅</div>
+      <h1 class="thanks-title">Bedankt!</h1>
+      <p class="thanks-body">
+        {% if dossier_naam %}
+          Je antwoorden voor <strong>{{ dossier_naam }}</strong> zijn opgeslagen.<br>
+        {% else %}
+          Je antwoorden zijn opgeslagen.<br>
+        {% endif %}
+        {{ cfg.tenant_name }} ontvangt de ingevulde gegevens.
+      </p>
+      <p style="margin-top:16px;font-size:13px;color:var(--muted);">
+        Je kunt dit venster sluiten.
+      </p>
+
+      <div style="margin-top:28px;padding-top:20px;border-top:1px solid var(--border);">
+        <div style="font-size:13px;color:var(--muted);">
+          {% if cfg.logo_url %}
+            <img src="{{ cfg.logo_url }}" alt="{{ cfg.tenant_name }}" style="height:20px;display:inline-block;vertical-align:middle;margin-right:6px;">
+          {% endif %}
+          {{ cfg.tenant_name }}
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

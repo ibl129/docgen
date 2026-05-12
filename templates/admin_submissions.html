@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}Inzendingen — {{ cfg.tenant_name }}{% endblock %}
+
+{% block content %}
+<div class="page">
+  <div class="breadcrumb">
+    <a href="{{ url_for('admin') }}">Beheer</a>
+    <span class="breadcrumb-sep">/</span>
+    <span class="breadcrumb-current">Inzendingen</span>
+  </div>
+
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Inzendingen</h1>
+      <p class="page-subtitle">Alle ingevulde externe formulieren.</p>
+    </div>
+  </div>
+
+  <nav class="admin-nav">
+    <a href="{{ url_for('admin') }}" class="admin-nav-link">Dashboard</a>
+    <a href="{{ url_for('admin_config') }}" class="admin-nav-link">Instellingen</a>
+    <a href="{{ url_for('admin_submissions') }}" class="admin-nav-link active">Inzendingen</a>
+  </nav>
+
+  <div class="card">
+    {% if submissions %}
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Tijdstip</th>
+              <th>Sjabloon</th>
+              <th>Omschrijving link</th>
+              <th>Status</th>
+              <th>Waarden</th>
+              <th>Actie</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for sub in submissions %}
+              <tr>
+                <td style="white-space:nowrap;color:var(--muted);font-size:13px;">
+                  {{ sub.submitted_at[:16].replace('T', ' ') if sub.submitted_at else '—' }}
+                </td>
+                <td>
+                  <span style="font-weight:500;">{{ sub.template_name }}</span>
+                </td>
+                <td style="color:var(--muted);">
+                  {{ sub.token_description }}
+                </td>
+                <td>
+                  <span class="badge badge-{{ sub.token_status }}">
+                    {% if sub.token_status == 'sealed' %}<i data-lucide="lock" style="width:12px;height:12px;vertical-align:-1px;"></i> Verzegeld{% else %}<i data-lucide="clock" style="width:12px;height:12px;vertical-align:-1px;"></i> Open{% endif %}
+                  </span>
+                </td>
+                <td>
+                  <div class="sub-values">
+                    {% for k, v in sub.values.items() %}
+                      {% if v %}
+                        <span class="sub-value-chip">
+                          <strong>{{ k }}:</strong> {{ v[:40] }}{% if v | length > 40 %}…{% endif %}
+                        </span>
+                      {% endif %}
+                    {% endfor %}
+                  </div>
+                </td>
+                <td>
+                  <a
+                    href="{{ url_for('token_download', token_id=sub.token_id) }}"
+                    class="btn btn-xs btn-secondary"
+                  >↓ Download</a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state">
+        <div class="empty-state-icon"><i data-lucide="inbox"></i></div>
+        <div class="empty-state-title">Geen inzendingen</div>
+        <div class="empty-state-body">
+          Nog geen externe formulieren ingevuld. Stuur een externe link vanuit een sjabloon.
+        </div>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Nieuw dossier — {{ cfg.tenant_name }}{% endblock %}
+
+{% block content %}
+<div class="page-narrow">
+  <div class="breadcrumb">
+    <a href="{{ url_for('dossiers_overzicht') }}">Dossiers</a>
+    <span class="breadcrumb-sep">/</span>
+    <span class="breadcrumb-current">Nieuw dossier</span>
+  </div>
+
+  <div class="page-header" style="margin-bottom:20px;">
+    <div>
+      <h1 class="page-title">Nieuw dossier</h1>
+      <p class="page-subtitle">Geef het dossier een naam en selecteer de sjablonen die je wil toevoegen.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <form method="post" action="{{ url_for('dossier_nieuw') }}">
+
+      <div class="form-group">
+        <label class="form-label" for="naam">
+          Naam <span class="required">*</span>
+        </label>
+        <input
+          type="text"
+          id="naam"
+          name="naam"
+          class="form-control"
+          required
+          placeholder="bv. Organisatie A – contract 2026"
+          autofocus
+        >
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="omschrijving">Omschrijving</label>
+        <textarea
+          id="omschrijving"
+          name="omschrijving"
+          class="form-control"
+          rows="3"
+          placeholder="Optionele toelichting bij dit dossier"
+        ></textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">
+          Sjablonen <span class="required">*</span>
+        </label>
+        <p class="form-hint" style="margin-bottom:12px;">Selecteer minimaal één sjabloon. Voor elk gekozen sjabloon wordt een lege invulling aangemaakt.</p>
+
+        {% if templates %}
+          <div class="template-check-list">
+            {% for tmpl in templates %}
+              <label class="template-check-item">
+                <input
+                  type="checkbox"
+                  name="template_ids"
+                  value="{{ tmpl.id }}"
+                  class="form-check-input"
+                >
+                <div class="template-check-body">
+                  <div class="template-check-name">{{ tmpl.name }}</div>
+                  {% if tmpl.description %}
+                    <div class="template-check-desc">{{ tmpl.description }}</div>
+                  {% endif %}
+                </div>
+              </label>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="alert alert-warning">
+            Er zijn nog geen sjablonen beschikbaar.
+            {% if session.get('is_admin') %}
+              <a href="{{ url_for('admin_template_new') }}">Maak eerst een sjabloon aan.</a>
+            {% endif %}
+          </div>
+        {% endif %}
+      </div>
+
+      <div style="display:flex;gap:10px;margin-top:8px;">
+        <button type="submit" class="btn btn-primary" {% if not templates %}disabled{% endif %}>
+          Dossier aanmaken →
+        </button>
+        <a href="{{ url_for('dossiers_overzicht') }}" class="btn btn-secondary">Annuleren</a>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

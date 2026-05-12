@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}{{ cfg.tenant_name }}{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <style>
+    :root {
+      --primary: {{ cfg.primary_color or '#2563EB' }};
+      --primary-dark: color-mix(in srgb, {{ cfg.primary_color or '#2563EB' }} 80%, black);
+      --primary-light: color-mix(in srgb, {{ cfg.primary_color or '#2563EB' }} 10%, white);
+    }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+  {% block topbar %}
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a href="{{ url_for('index') }}" class="topbar-brand">
+        {% if cfg.logo_url %}
+          <img src="{{ cfg.logo_url }}" alt="{{ cfg.tenant_name }}" class="topbar-logo">
+        {% else %}
+          <div class="topbar-logo-placeholder">{{ cfg.tenant_name[0] | upper }}</div>
+        {% endif %}
+        <span class="topbar-title">{{ cfg.tenant_name }}</span>
+      </a>
+      <nav class="topbar-nav">
+        {% if session.get('user_code') %}
+          <a href="{{ url_for('index') }}" class="topbar-link {% if request.endpoint == 'index' %}active{% endif %}">Sjablonen</a>
+          <a href="{{ url_for('dossiers_overzicht') }}" class="topbar-link {% if request.endpoint and request.endpoint.startswith('dossier') %}active{% endif %}">Dossiers</a>
+          {% if session.get('is_admin') %}
+            <a href="{{ url_for('admin') }}" class="topbar-link {% if request.endpoint and request.endpoint.startswith('admin') %}active{% endif %}">Beheer</a>
+          {% endif %}
+          <div class="topbar-sep"></div>
+          <span class="topbar-user">{{ session.get('user_label', '') }}</span>
+          <a href="{{ url_for('logout') }}" class="topbar-link">Uitloggen</a>
+        {% endif %}
+      </nav>
+    </div>
+  </header>
+  {% endblock %}
+
+  {% block flash %}
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div style="max-width:1100px;margin:16px auto 0;padding:0 24px;">
+        <ul class="flash-list">
+          {% for category, message in messages %}
+            <li class="flash flash-{{ category }}">
+              {% if category == 'success' %}<i data-lucide="check" style="width:15px;height:15px;vertical-align:-2px;"></i>{% elif category == 'error' %}<i data-lucide="x" style="width:15px;height:15px;vertical-align:-2px;"></i>{% else %}<i data-lucide="info" style="width:15px;height:15px;vertical-align:-2px;"></i>{% endif %}
+              {{ message }}
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    {% endif %}
+  {% endwith %}
+  {% endblock %}
+
+  {% block content %}
+    {% if error is defined %}
+      <div class="page-narrow">
+        <div class="card" style="text-align:center;padding:48px;">
+          <div style="margin-bottom:16px;color:var(--muted);"><i data-lucide="alert-triangle" style="width:36px;height:36px;"></i></div>
+          <p style="color:var(--muted);">{{ error }}</p>
+          <a href="{{ url_for('index') }}" class="btn btn-secondary" style="margin-top:20px;">Terug naar start</a>
+        </div>
+      </div>
+    {% endif %}
+  {% endblock %}
+
+  {% block scripts %}{% endblock %}
+  <script>lucide.createIcons();</script>
+</body>
+</html>

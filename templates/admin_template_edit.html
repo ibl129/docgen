@@ -1,0 +1,358 @@
+{% extends "base.html" %}
+
+{% block title %}{% if mode == 'new' %}Nieuw sjabloon{% else %}Sjabloon bewerken{% endif %} — {{ cfg.tenant_name }}{% endblock %}
+
+{% block content %}
+<div class="page-narrow">
+  <div class="breadcrumb">
+    <a href="{{ url_for('admin') }}">Beheer</a>
+    <span class="breadcrumb-sep">/</span>
+    <span class="breadcrumb-current">{% if mode == 'new' %}Nieuw sjabloon{% else %}Bewerken: {{ template.name }}{% endif %}</span>
+  </div>
+
+  <div class="page-header">
+    <h1 class="page-title">{% if mode == 'new' %}Nieuw sjabloon{% else %}Sjabloon bewerken{% endif %}</h1>
+  </div>
+
+  <form
+    method="post"
+    enctype="multipart/form-data"
+    action="{% if mode == 'new' %}{{ url_for('admin_template_new') }}{% else %}{{ url_for('admin_template_edit', template_id=template.id) }}{% endif %}"
+  >
+    <!-- Basic info -->
+    <div class="card">
+      <div class="card-title" style="margin-bottom:18px;">Basisinformatie</div>
+
+      <div class="form-group">
+        <label class="form-label" for="name">Naam <span class="required">*</span></label>
+        <input
+          type="text"
+          id="name"
+          name="name"
+          class="form-control"
+          value="{{ template.name if template else '' }}"
+          placeholder="bv. Offerte, Arbeidscontract"
+          required
+          autofocus
+        >
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="description">Omschrijving</label>
+        <textarea
+          id="description"
+          name="description"
+          class="form-control"
+          rows="2"
+          placeholder="Optionele beschrijving voor gebruikers"
+        >{{ template.description if template else '' }}</textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="docx_file">
+          Word-sjabloon (.docx)
+          {% if mode == 'edit' %}<span style="color:var(--muted);font-weight:400;"> — laat leeg om huidig bestand te behouden</span>{% else %}<span class="required">*</span>{% endif %}
+        </label>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <input
+            type="file"
+            id="docx_file"
+            name="docx_file"
+            class="form-control"
+            accept=".docx"
+            {% if mode == 'new' %}required{% endif %}
+            style="flex:1;min-width:0;"
+          >
+          <button type="button" class="btn btn-outline btn-sm" id="scan-btn" style="white-space:nowrap;display:none;">
+            <i data-lucide="scan-text" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px;"></i>Scan placeholders
+          </button>
+        </div>
+        <div class="form-hint">
+          Gebruik <code>{{"{{"}}veldnaam{{"}}"}}</code> als placeholder in je Word-document. Upload het bestand en klik op <strong>Scan placeholders</strong> om velden automatisch te detecteren.
+        </div>
+        <div id="scan-result" style="display:none;margin-top:8px;padding:10px 12px;background:var(--bg);border-radius:10px;font-size:13px;color:var(--muted);"></div>
+        {% if mode == 'edit' and template.docx_path %}
+          <div class="form-hint" style="margin-top:4px;">
+            Huidig bestand: <code>{{ template.docx_path.split('/')[-1] }}</code>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Field builder -->
+    <div class="card" style="margin-top:20px;">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Velden</div>
+          <div class="card-subtitle">Definieer de invulvelden die overeenkomen met de placeholders in je document.</div>
+        </div>
+        <button type="button" class="btn btn-outline btn-sm" id="add-field-btn">+ Veld toevoegen</button>
+      </div>
+
+      <div class="field-builder" id="field-builder">
+        <!-- Fields will be rendered here by JS -->
+      </div>
+
+      <div id="empty-fields-msg" style="display:none;">
+        <div class="empty-state" style="padding:20px;">
+          <div class="empty-state-icon"><i data-lucide="layout-list" style="width:24px;height:24px;"></i></div>
+          <div class="empty-state-title">Nog geen velden</div>
+          <div class="empty-state-body">Upload een sjabloon en klik <strong>Scan placeholders</strong>, of voeg handmatig velden toe.</div>
+        </div>
+      </div>
+
+      <!-- Hidden input carries the JSON -->
+      <input type="hidden" name="fields_json" id="fields-json-input" value="[]">
+    </div>
+
+    <!-- Actions -->
+    <div style="display:flex;gap:10px;margin-top:20px;justify-content:flex-end;">
+      <a href="{{ url_for('admin') }}" class="btn btn-secondary">Annuleren</a>
+      <button type="submit" class="btn btn-primary">
+        {% if mode == 'new' %}Sjabloon aanmaken{% else %}Wijzigingen opslaan{% endif %}
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Initial field data from server (edit mode)
+  const initialFields = {{ (fields | tojson) if fields else '[]' }};
+
+  let fields = initialFields.length ? JSON.parse(JSON.stringify(initialFields)) : [];
+
+  const FIELD_TYPES = [
+    { value: 'text', label: 'Tekst (1 regel)' },
+    { value: 'textarea', label: 'Tekst (meerdere regels)' },
+    { value: 'date', label: 'Datum' },
+    { value: 'number', label: 'Getal' },
+    { value: 'email', label: 'E-mailadres' },
+    { value: 'dropdown', label: 'Keuzemenu' },
+  ];
+
+  function slugify(text) {
+    return text.toLowerCase()
+      .replace(/\s+/g, '_')
+      .replace(/[^a-z0-9_]/g, '')
+      .replace(/__+/g, '_')
+      .replace(/^_|_$/g, '');
+  }
+
+  function render() {
+    const builder = document.getElementById('field-builder');
+    const emptyMsg = document.getElementById('empty-fields-msg');
+    builder.innerHTML = '';
+
+    if (fields.length === 0) {
+      emptyMsg.style.display = '';
+    } else {
+      emptyMsg.style.display = 'none';
+      fields.forEach((field, idx) => renderField(builder, field, idx));
+      lucide.createIcons();
+    }
+
+    document.getElementById('fields-json-input').value = JSON.stringify(fields);
+  }
+
+  function renderField(container, field, idx) {
+    const row = document.createElement('div');
+    row.className = 'field-row';
+    row.innerHTML = `
+      <div>
+        <label>Veldnaam (placeholder)</label>
+        <input
+          type="text"
+          class="form-control field-name"
+          value="${escHtml(field.name || '')}"
+          placeholder="veldnaam"
+          data-idx="${idx}"
+          oninput="updateField(${idx}, 'name', this.value)"
+        >
+      </div>
+      <div>
+        <label>Label (zichtbaar)</label>
+        <input
+          type="text"
+          class="form-control"
+          value="${escHtml(field.label || '')}"
+          placeholder="Label voor gebruiker"
+          oninput="updateField(${idx}, 'label', this.value)"
+        >
+      </div>
+      <div>
+        <label>Type</label>
+        <select class="form-control" onchange="updateField(${idx}, 'type', this.value)">
+          ${FIELD_TYPES.map(t =>
+            `<option value="${t.value}" ${field.type === t.value ? 'selected' : ''}>${t.label}</option>`
+          ).join('')}
+        </select>
+      </div>
+      <div>
+        <label>Verplicht</label>
+        <div style="padding-top:8px;">
+          <label class="form-check" style="cursor:pointer;">
+            <input
+              type="checkbox"
+              ${field.required ? 'checked' : ''}
+              onchange="updateField(${idx}, 'required', this.checked)"
+            >
+            <span style="font-size:13px;">Ja</span>
+          </label>
+        </div>
+      </div>
+      <div>
+        <label>&nbsp;</label>
+        <button
+          type="button"
+          class="field-remove"
+          onclick="removeField(${idx})"
+          title="Veld verwijderen"
+        ><i data-lucide="x" style="width:14px;height:14px;"></i></button>
+      </div>
+      ${field.type === 'date' ? `
+        <div style="grid-column:1/-1;margin-top:-4px;">
+          <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted);display:block;margin-bottom:4px;">Datumnotatie in document</label>
+          <select
+            class="form-control"
+            style="font-size:13px;padding:8px 10px;"
+            onchange="updateField(${idx}, 'date_format', this.value)"
+          >
+            ${[
+              ['DD-MM-YYYY','12-05-2026'],
+              ['DD-MM-YY',  '12-05-26'],
+              ['D MMM YYYY','12 mei 2026'],
+              ['D MMMM YYYY','12 mei 2026 (voluit)'],
+              ['YYYY-MM-DD','2026-05-12 (ISO)'],
+            ].map(([val, ex]) =>
+              `<option value="${val}" ${(field.date_format||'DD-MM-YYYY') === val ? 'selected' : ''}>${val} — ${ex}</option>`
+            ).join('')}
+          </select>
+        </div>
+      ` : ''}
+      ${field.type === 'dropdown' ? `
+        <div style="grid-column:1/-1;margin-top:-4px;">
+          <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted);display:block;margin-bottom:4px;">Opties (kommagescheiden)</label>
+          <input
+            type="text"
+            class="form-control"
+            style="font-size:13px;padding:8px 10px;"
+            value="${escHtml(field.options || '')}"
+            placeholder="bv. Optie A, Optie B, Optie C"
+            oninput="updateField(${idx}, 'options', this.value)"
+          >
+        </div>
+      ` : ''}
+    `;
+    container.appendChild(row);
+  }
+
+  function escHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  function updateField(idx, key, value) {
+    fields[idx][key] = value;
+
+    // If label was just typed and name is empty, auto-fill name
+    if (key === 'label' && !fields[idx]['name']) {
+      fields[idx]['name'] = slugify(value);
+    }
+
+    // If type changed to/from dropdown, re-render that row
+    if (key === 'type') render();
+    else document.getElementById('fields-json-input').value = JSON.stringify(fields);
+  }
+
+  function removeField(idx) {
+    fields.splice(idx, 1);
+    render();
+  }
+
+  document.getElementById('add-field-btn').addEventListener('click', () => {
+    fields.push({ name: '', label: '', type: 'text', required: false, options: '' });
+    render();
+    // Focus the last name input
+    setTimeout(() => {
+      const inputs = document.querySelectorAll('.field-name');
+      if (inputs.length > 0) inputs[inputs.length - 1].focus();
+    }, 50);
+  });
+
+  // Initial render
+  render();
+
+  // Scan placeholders
+  const docxInput = document.getElementById('docx_file');
+  const scanBtn   = document.getElementById('scan-btn');
+  const scanResult = document.getElementById('scan-result');
+
+  docxInput.addEventListener('change', () => {
+    if (docxInput.files.length > 0) {
+      scanBtn.style.display = '';
+      lucide.createIcons();
+    } else {
+      scanBtn.style.display = 'none';
+    }
+  });
+
+  scanBtn.addEventListener('click', async () => {
+    const file = docxInput.files[0];
+    if (!file) return;
+
+    scanBtn.disabled = true;
+    scanBtn.textContent = 'Scannen…';
+
+    const formData = new FormData();
+    formData.append('docx_file', file);
+
+    try {
+      const res = await fetch('{{ url_for("admin_template_scan") }}', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+
+      if (data.error) {
+        scanResult.style.display = '';
+        scanResult.innerHTML = `<span style="color:var(--danger);">Fout: ${data.error}</span>`;
+      } else if (data.placeholders.length === 0) {
+        scanResult.style.display = '';
+        scanResult.textContent = 'Geen placeholders gevonden in dit document.';
+      } else {
+        // Voeg toe: alleen placeholders die nog niet als veldnaam bestaan
+        const bestaand = new Set(fields.map(f => f.name));
+        const nieuw = data.placeholders.filter(p => !bestaand.has(p));
+
+        nieuw.forEach(p => {
+          fields.push({ name: p, label: '', type: 'text', required: false, options: '' });
+        });
+        render();
+
+        scanResult.style.display = '';
+        if (nieuw.length > 0) {
+          scanResult.innerHTML = `<i data-lucide="check-circle-2" style="width:13px;height:13px;vertical-align:-2px;color:var(--success);margin-right:4px;"></i>`
+            + `<strong>${nieuw.length}</strong> placeholder${nieuw.length !== 1 ? 's' : ''} gevonden: `
+            + nieuw.map(p => `<code style="background:white;padding:1px 5px;border-radius:4px;">${p}</code>`).join(', ')
+            + `. Vul het label, type en verplicht in.`;
+        } else {
+          scanResult.textContent = 'Alle gevonden placeholders zijn al als veld aanwezig.';
+        }
+        lucide.createIcons();
+      }
+    } catch (e) {
+      scanResult.style.display = '';
+      scanResult.innerHTML = `<span style="color:var(--danger);">Scannen mislukt: ${e.message}</span>`;
+    }
+
+    scanBtn.disabled = false;
+    scanBtn.innerHTML = '<i data-lucide="scan-text" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px;"></i>Scan placeholders';
+    lucide.createIcons();
+  });
+</script>
+{% endblock %}

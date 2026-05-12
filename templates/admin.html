@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+
+{% block title %}Beheer — {{ cfg.tenant_name }}{% endblock %}
+
+{% block content %}
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Beheer</h1>
+      <p class="page-subtitle">Overzicht van sjablonen, gebruikers en activiteit.</p>
+    </div>
+    <div class="page-actions">
+      <a href="{{ url_for('admin_template_new') }}" class="btn btn-primary">+ Nieuw sjabloon</a>
+    </div>
+  </div>
+
+  <nav class="admin-nav">
+    <a href="{{ url_for('admin') }}" class="admin-nav-link active">Dashboard</a>
+    <a href="{{ url_for('admin_config') }}" class="admin-nav-link">Instellingen</a>
+    <a href="{{ url_for('admin_submissions') }}" class="admin-nav-link">Inzendingen</a>
+  </nav>
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-number primary">{{ templates | length }}</div>
+      <div class="stat-label">Sjablonen</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number">{{ token_stats.total }}</div>
+      <div class="stat-label">Externe links</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number success">{{ token_stats.sealed }}</div>
+      <div class="stat-label">Verzegeld</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number muted">{{ token_stats.pending }}</div>
+      <div class="stat-label">Open</div>
+    </div>
+  </div>
+
+  <!-- Templates -->
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Sjablonen</div>
+        <div class="card-subtitle">Beheer je Word-sjablonen en hun velden.</div>
+      </div>
+      <a href="{{ url_for('admin_template_new') }}" class="btn btn-sm btn-outline">+ Nieuw</a>
+    </div>
+
+    {% if templates %}
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Naam</th>
+              <th>Aangemaakt</th>
+              <th>Acties</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for tmpl in templates %}
+              <tr>
+                <td>
+                  <a href="{{ url_for('template_detail', template_id=tmpl.id) }}" style="font-weight:500;">
+                    {{ tmpl.name }}
+                  </a>
+                </td>
+                <td style="color:var(--muted);font-size:13px;">
+                  {{ tmpl.created_at[:10] if tmpl.created_at else '—' }}
+                </td>
+                <td>
+                  <div class="td-actions">
+                    <a href="{{ url_for('admin_template_edit', template_id=tmpl.id) }}" class="btn btn-xs btn-secondary">Bewerken</a>
+                    <form method="post" action="{{ url_for('admin_template_delete', template_id=tmpl.id) }}" style="margin:0;">
+                      <button
+                        type="submit"
+                        class="btn btn-xs btn-danger-outline"
+                        onclick="return confirm('Weet je zeker dat je dit sjabloon wilt verwijderen? Alle gekoppelde links en inzendingen worden ook verwijderd.')"
+                      >Verwijderen</button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state" style="padding:28px;">
+        <div class="empty-state-icon"><i data-lucide="file-text"></i></div>
+        <div class="empty-state-title">Geen sjablonen</div>
+        <div class="empty-state-body">
+          <a href="{{ url_for('admin_template_new') }}">Maak je eerste sjabloon aan</a>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- Access codes summary -->
+  <div class="card" style="margin-top:20px;">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Toegangscodes</div>
+        <div class="card-subtitle">{{ codes | length }} code{{ 's' if codes | length != 1 else '' }} actief.</div>
+      </div>
+      <a href="{{ url_for('admin_config') }}" class="btn btn-sm btn-secondary">Beheren</a>
+    </div>
+    {% if codes %}
+      <div style="display:flex;flex-wrap:wrap;gap:6px;">
+        {% for c in codes %}
+          <span class="badge badge-{{ 'admin' if c.is_admin else 'user' }}">
+            {% if c.is_admin %}<i data-lucide="shield" style="width:12px;height:12px;vertical-align:-1px;margin-right:3px;"></i>{% else %}<i data-lucide="user" style="width:12px;height:12px;vertical-align:-1px;margin-right:3px;"></i>{% endif %}{{ c.label or c.code }}
+          </span>
+        {% endfor %}
+      </div>
+    {% else %}
+      <p style="color:var(--muted);font-size:14px;">Nog geen toegangscodes.</p>
+    {% endif %}
+  </div>
+
+  <!-- Systeemvariabelen -->
+  <div class="card" style="margin-top:24px;">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+      <i data-lucide="cpu" style="width:16px;height:16px;color:var(--primary);"></i>
+      <h2 style="font-size:15px;font-weight:600;margin:0;">Systeemvariabelen</h2>
+    </div>
+    <p style="color:var(--muted);font-size:13px;margin:0 0 16px;">
+      Deze placeholders worden automatisch ingevuld bij het genereren van elk document. Gebruik ze in je Word-sjabloon net als gewone velden.
+    </p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Placeholder</th>
+            <th>Beschrijving</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for key, desc in system_variables %}
+            <tr>
+              <td><code style="background:var(--bg);padding:2px 7px;border-radius:6px;font-size:12px;color:var(--primary);">{{"{{"}}{{ key }}{{"}}"}}</code></td>
+              <td style="color:var(--muted);font-size:13px;">{{ desc }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Conditionele blokken -->
+  <div class="card" style="margin-top:24px;">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+      <i data-lucide="git-branch" style="width:16px;height:16px;color:var(--primary);"></i>
+      <h2 style="font-size:15px;font-weight:600;margin:0;">Conditionele paragrafen</h2>
+    </div>
+    <p style="color:var(--muted);font-size:13px;margin:0 0 16px;">
+      Gebruik onderstaande tags op een <strong>aparte alinea</strong> in je Word-sjabloon om paragrafen conditioneel te tonen. De hele alinea tussen de tags wordt opgenomen of verwijderd op basis van of het veld ingevuld is.
+    </p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Tag</th>
+            <th>Werking</th>
+            <th>Voorbeeld</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code style="background:var(--bg);padding:2px 7px;border-radius:6px;font-size:12px;color:var(--primary);">{{"{{"}}#if veldnaam{{"}}"}}</code></td>
+            <td style="font-size:13px;color:var(--muted);">Toon inhoud alleen als het veld <strong>ingevuld</strong> is</td>
+            <td style="font-size:12px;color:var(--muted);">Bijlage: {{"{{"}}bijlage{{"}}"}}</td>
+          </tr>
+          <tr>
+            <td><code style="background:var(--bg);padding:2px 7px;border-radius:6px;font-size:12px;color:var(--primary);">{{"{{"}}#ifnot veldnaam{{"}}"}}</code></td>
+            <td style="font-size:13px;color:var(--muted);">Toon inhoud alleen als het veld <strong>leeg</strong> is</td>
+            <td style="font-size:12px;color:var(--muted);">Geen bijlage bijgevoegd.</td>
+          </tr>
+          <tr>
+            <td><code style="background:var(--bg);padding:2px 7px;border-radius:6px;font-size:12px;color:var(--primary);">{{"{{/if}}"}} / {{"{{/ifnot}}"}}</code></td>
+            <td style="font-size:13px;color:var(--muted);">Sluitingstag — altijd verplicht na elk blok</td>
+            <td></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="margin-top:14px;padding:12px 14px;background:var(--bg);border-radius:10px;font-size:12px;color:var(--muted);line-height:1.7;">
+      <strong>Voorbeeld in Word (elke tag op eigen alinea):</strong><br>
+      <code>{{"{{#if bijlage}}"}}</code><br>
+      <code>Bijlage: {{"{{bijlage}}"}}</code><br>
+      <code>{{"{{/if}}"}}</code><br>
+      <code>{{"{{"}}#ifnot bijlage{{"}}"}}</code><br>
+      <code>Geen bijlage bijgevoegd.</code><br>
+      <code>{{"{{/ifnot}}"}}</code>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

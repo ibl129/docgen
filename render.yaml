@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: docgen
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: SUPABASE_BUCKET
+        value: docgen-files
+      - key: TENANT_NAME
+        value: Mijn Organisatie
+      - key: PRIMARY_COLOR
+        value: "#2563EB"
+      - key: SECRET_KEY
+        generateValue: true

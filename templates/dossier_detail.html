@@ -1,0 +1,286 @@
+{% extends "base.html" %}
+
+{% block title %}{{ dossier.naam }} — {{ cfg.tenant_name }}{% endblock %}
+
+{% block content %}
+<div class="page">
+  <div class="breadcrumb">
+    <a href="{{ url_for('dossiers_overzicht') }}">Dossiers</a>
+    <span class="breadcrumb-sep">/</span>
+    <span class="breadcrumb-current">{{ dossier.naam }}</span>
+  </div>
+
+  <div class="page-header">
+    <div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <h1 class="page-title">{{ dossier.naam }}</h1>
+        <span class="badge badge-dossier-{{ dossier.status }}">
+          {% if dossier.status == 'afgerond' %}<i data-lucide="check" style="width:12px;height:12px;vertical-align:-1px;"></i> Afgerond{% else %}<i data-lucide="circle" style="width:10px;height:10px;vertical-align:-1px;"></i> Concept{% endif %}
+        </span>
+      </div>
+      {% if dossier.omschrijving %}
+        <p class="page-subtitle">{{ dossier.omschrijving }}</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="dossier-layout">
+
+    <!-- ── Linkerkolom: Invullingen ── -->
+    <div class="dossier-main">
+      {% if invullingen %}
+        {% for inv in invullingen %}
+          <div class="invulling-card" id="inv-{{ inv.id }}">
+            <div class="invulling-card-header">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <span class="invulling-card-title">{{ inv.template.name if inv.template else '—' }}</span>
+                {% if inv.is_filled %}
+                  <span class="badge badge-sealed"><i data-lucide="check" style="width:11px;height:11px;vertical-align:-1px;"></i> Opgeslagen</span>
+                {% else %}
+                  <span class="badge badge-concept"><i data-lucide="circle" style="width:9px;height:9px;vertical-align:-1px;"></i> Concept</span>
+                {% endif %}
+              </div>
+              <a
+                href="{{ url_for('dossier_invulling_download', dossier_id=dossier.id, inv_id=inv.id) }}"
+                class="btn btn-sm btn-secondary"
+                title="Download .docx"
+              >↓ Download</a>
+            </div>
+
+            <form method="post" action="{{ url_for('dossier_invulling_opslaan', dossier_id=dossier.id, inv_id=inv.id) }}">
+              {% if inv.fields %}
+                {% for field in inv.fields %}
+                  <div class="form-group">
+                    <label class="form-label" for="f_{{ inv.id }}_{{ field.name }}">
+                      {{ field.label or field.name }}
+                      {% if field.required %}<span class="required">*</span>{% endif %}
+                    </label>
+
+                    {% set current_val = inv.waarden.get(field.name, '') %}
+
+                    {% if field.type == 'textarea' %}
+                      <textarea
+                        id="f_{{ inv.id }}_{{ field.name }}"
+                        name="{{ field.name }}"
+                        class="form-control"
+                        rows="3"
+                        placeholder="{{ field.label or field.name }}"
+                      >{{ current_val }}</textarea>
+
+                    {% elif field.type == 'date' %}
+                      <input
+                        type="date"
+                        id="f_{{ inv.id }}_{{ field.name }}"
+                        name="{{ field.name }}"
+                        class="form-control"
+                        value="{{ current_val }}"
+                      >
+
+                    {% elif field.type == 'number' %}
+                      <input
+                        type="number"
+                        id="f_{{ inv.id }}_{{ field.name }}"
+                        name="{{ field.name }}"
+                        class="form-control"
+                        value="{{ current_val }}"
+                        placeholder="0"
+                      >
+
+                    {% elif field.type == 'email' %}
+                      <input
+                        type="email"
+                        id="f_{{ inv.id }}_{{ field.name }}"
+                        name="{{ field.name }}"
+                        class="form-control"
+                        value="{{ current_val }}"
+                        placeholder="naam@voorbeeld.nl"
+                      >
+
+                    {% elif field.type == 'dropdown' %}
+                      <select
+                        id="f_{{ inv.id }}_{{ field.name }}"
+                        name="{{ field.name }}"
+                        class="form-control"
+                      >
+                        <option value="">— Kies een optie —</option>
+                        {% for opt in (field.options or '').split(',') %}
+                          {% if opt.strip() %}
+                            <option value="{{ opt.strip() }}" {% if opt.strip() == current_val %}selected{% endif %}>
+                              {{ opt.strip() }}
+                            </option>
+                          {% endif %}
+                        {% endfor %}
+                      </select>
+
+                    {% else %}
+                      <input
+                        type="text"
+                        id="f_{{ inv.id }}_{{ field.name }}"
+                        name="{{ field.name }}"
+                        class="form-control"
+                        value="{{ current_val }}"
+                        placeholder="{{ field.label or field.name }}"
+                      >
+                    {% endif %}
+                  </div>
+                {% endfor %}
+
+                <button type="submit" class="btn btn-outline btn-sm" style="margin-top:4px;">
+                  Opslaan
+                </button>
+              {% else %}
+                <div class="empty-state" style="padding:16px;">
+                  <div class="empty-state-body">Dit sjabloon heeft nog geen velden.</div>
+                </div>
+              {% endif %}
+            </form>
+          </div>
+        {% endfor %}
+      {% else %}
+        <div class="card">
+          <div class="empty-state">
+            <div class="empty-state-icon"><i data-lucide="file-text"></i></div>
+            <div class="empty-state-title">Geen invullingen</div>
+            <div class="empty-state-body">Er zijn geen sjablonen gekoppeld aan dit dossier.</div>
+          </div>
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- ── Rechterkolom: Delen & Status ── -->
+    <div class="dossier-sidebar">
+
+      <!-- Extern delen -->
+      <div class="share-panel">
+        <div class="share-panel-title">Extern delen</div>
+
+        {% if invullingen %}
+          <div style="margin-bottom:16px;">
+            <div class="section-title" style="margin-bottom:8px;">Zichtbaarheid per invulling</div>
+            {% for inv in invullingen %}
+              <form method="post" action="{{ url_for('dossier_invulling_toegang', dossier_id=dossier.id, inv_id=inv.id) }}" class="toegang-form">
+                <div class="toegang-row">
+                  <span class="toegang-label" title="{{ inv.template.name if inv.template else '—' }}">
+                    {{ (inv.template.name if inv.template else '—') | truncate(28, true, '…') }}
+                  </span>
+                  <select name="extern_toegang" class="extern-toegang-select" onchange="this.form.submit()">
+                    <option value="verborgen" {% if inv.extern_toegang == 'verborgen' %}selected{% endif %}>Verborgen</option>
+                    <option value="leesbaar" {% if inv.extern_toegang == 'leesbaar' %}selected{% endif %}>Leesbaar</option>
+                    <option value="invulbaar" {% if inv.extern_toegang == 'invulbaar' %}selected{% endif %}>Invulbaar</option>
+                  </select>
+                </div>
+              </form>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        <div class="section-title" style="margin-bottom:10px;">Deellinks</div>
+
+        <form method="post" action="{{ url_for('dossier_token_aanmaken', dossier_id=dossier.id) }}" style="margin-bottom:14px;">
+          <div class="inline-form" style="flex-direction:column;align-items:stretch;gap:8px;">
+            <input
+              type="text"
+              name="omschrijving"
+              class="form-control"
+              placeholder="bv. Klant Jan de Vries"
+            >
+            <button type="submit" class="btn btn-outline btn-sm btn-full">
+              + Nieuwe deellink
+            </button>
+          </div>
+        </form>
+
+        {% if tokens %}
+          <div class="token-row-list">
+            {% for tok in tokens %}
+              {% set tok_url = request.host_url.rstrip('/') + url_for('dossier_extern', token_id=tok.id) %}
+              <div class="token-row">
+                <div class="token-row-top">
+                  <span class="token-row-desc">{{ tok.omschrijving or 'Deellink' }}</span>
+                  {% if tok.status == 'actief' %}
+                    <span class="badge badge-sealed" style="font-size:11px;">Actief</span>
+                  {% else %}
+                    <span class="badge badge-ingetrokken" style="font-size:11px;">Ingetrokken</span>
+                  {% endif %}
+                </div>
+                {% if tok.status == 'actief' %}
+                  <div class="token-url-wrap" style="margin:4px 0;">
+                    <span class="token-url" id="dtok-{{ tok.id }}">{{ tok_url }}</span>
+                    <button
+                      class="copy-btn"
+                      title="Kopieer link"
+                      onclick="copyDossierUrl('{{ tok.id }}', '{{ tok_url }}')"
+                    ><i data-lucide="clipboard" style="width:14px;height:14px;"></i></button>
+                  </div>
+                  <form method="post" action="{{ url_for('dossier_token_intrekken', token_id=tok.id) }}" style="margin-top:4px;">
+                    <button
+                      type="submit"
+                      class="btn btn-xs btn-danger-outline"
+                      onclick="return confirm('Deellink intrekken? De externe partij verliest toegang.')"
+                    >Intrekken</button>
+                  </form>
+                {% endif %}
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="empty-state" style="padding:12px 0;">
+            <div class="empty-state-icon" style="font-size:20px;">🔗</div>
+            <div class="empty-state-body" style="font-size:13px;">Nog geen deellinks aangemaakt.</div>
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- Dossier status -->
+      <div class="share-panel" style="margin-top:16px;">
+        <div class="share-panel-title">Dossier status</div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">
+          Markeer dit dossier als afgerond als alle invullingen klaar zijn.
+        </p>
+        <form method="post" action="{{ url_for('dossier_status', dossier_id=dossier.id) }}">
+          {% if dossier.status == 'concept' %}
+            <input type="hidden" name="status" value="afgerond">
+            <button type="submit" class="btn btn-sm btn-secondary btn-full">
+              Markeer als afgerond
+            </button>
+          {% else %}
+            <input type="hidden" name="status" value="concept">
+            <button type="submit" class="btn btn-sm btn-outline btn-full">
+              Terug naar concept
+            </button>
+          {% endif %}
+        </form>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function copyDossierUrl(tokenId, url) {
+  navigator.clipboard.writeText(url).then(() => {
+    const btn = document.querySelector(`[onclick="copyDossierUrl('${tokenId}', '${url}')"]`);
+    if (btn) {
+      btn.innerHTML = '<i data-lucide="check" style="width:14px;height:14px;"></i>';
+      btn.classList.add('copied');
+      lucide.createIcons();
+      setTimeout(() => {
+        btn.innerHTML = '<i data-lucide="clipboard" style="width:14px;height:14px;"></i>';
+        lucide.createIcons();
+        btn.classList.remove('copied');
+      }, 1800);
+    }
+  }).catch(() => {
+    const el = document.createElement('textarea');
+    el.value = url;
+    document.body.appendChild(el);
+    el.select();
+    document.execCommand('copy');
+    document.body.removeChild(el);
+    alert('Link gekopieerd!');
+  });
+}
+</script>
+{% endblock %}

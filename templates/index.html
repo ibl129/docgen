@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Sjablonen — {{ cfg.tenant_name }}{% endblock %}
+
+{% block content %}
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Sjablonen</h1>
+      <p class="page-subtitle">Kies een sjabloon om een document mee te genereren.</p>
+    </div>
+    {% if session.get('is_admin') %}
+      <div class="page-actions">
+        <a href="{{ url_for('admin_template_new') }}" class="btn btn-primary">+ Nieuw sjabloon</a>
+      </div>
+    {% endif %}
+  </div>
+
+  {% if templates %}
+    <div class="template-grid">
+      {% for tmpl in templates %}
+        <a href="{{ url_for('template_detail', template_id=tmpl.id) }}" class="template-card">
+          <div class="template-card-icon"><i data-lucide="file-text"></i></div>
+          <div>
+            <div class="template-card-name">{{ tmpl.name }}</div>
+            {% if tmpl.description %}
+              <div class="template-card-desc">{{ tmpl.description }}</div>
+            {% endif %}
+          </div>
+          <div class="template-card-meta">
+            Aangemaakt {{ tmpl.created_at[:10] if tmpl.created_at else '—' }}
+          </div>
+        </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="card">
+      <div class="empty-state">
+        <div class="empty-state-icon"><i data-lucide="folder-open"></i></div>
+        <div class="empty-state-title">Nog geen sjablonen</div>
+        <div class="empty-state-body">
+          {% if session.get('is_admin') %}
+            <a href="{{ url_for('admin_template_new') }}">Maak je eerste sjabloon aan</a> om te beginnen.
+          {% else %}
+            Er zijn nog geen sjablonen beschikbaar. Neem contact op met de beheerder.
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

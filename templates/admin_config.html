@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+
+{% block title %}Instellingen — {{ cfg.tenant_name }}{% endblock %}
+
+{% block content %}
+<div class="page-narrow">
+  <div class="breadcrumb">
+    <a href="{{ url_for('admin') }}">Beheer</a>
+    <span class="breadcrumb-sep">/</span>
+    <span class="breadcrumb-current">Instellingen</span>
+  </div>
+
+  <div class="page-header">
+    <h1 class="page-title">Instellingen</h1>
+  </div>
+
+  <nav class="admin-nav">
+    <a href="{{ url_for('admin') }}" class="admin-nav-link">Dashboard</a>
+    <a href="{{ url_for('admin_config') }}" class="admin-nav-link active">Instellingen</a>
+    <a href="{{ url_for('admin_submissions') }}" class="admin-nav-link">Inzendingen</a>
+  </nav>
+
+  <!-- Tenant config -->
+  <div class="card">
+    <div class="card-title" style="margin-bottom:18px;">Weergave</div>
+    <form method="post" action="{{ url_for('admin_config') }}">
+      <input type="hidden" name="action" value="save_config">
+
+      <div class="form-group">
+        <label class="form-label" for="tenant_name">Organisatienaam</label>
+        <input
+          type="text"
+          id="tenant_name"
+          name="tenant_name"
+          class="form-control"
+          value="{{ cfg.tenant_name }}"
+          placeholder="Mijn Organisatie"
+        >
+        <div class="form-hint">Wordt getoond in de topbar, loginpagina en externe formulieren.</div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="logo_url">Logo URL</label>
+        <input
+          type="url"
+          id="logo_url"
+          name="logo_url"
+          class="form-control"
+          value="{{ cfg.logo_url or '' }}"
+          placeholder="https://voorbeeld.nl/logo.png"
+        >
+        <div class="form-hint">Laat leeg voor de standaard letter-avatar.</div>
+        {% if cfg.logo_url %}
+          <div style="margin-top:10px;">
+            <img src="{{ cfg.logo_url }}" alt="Logo preview" style="height:36px;border-radius:6px;border:1px solid var(--border);">
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="primary_color">Accentkleur</label>
+        <div class="color-preview">
+          <input
+            type="color"
+            id="primary_color_picker"
+            value="{{ cfg.primary_color or '#2563EB' }}"
+            style="width:36px;height:36px;padding:2px;border:1px solid var(--border);border-radius:6px;cursor:pointer;"
+            oninput="document.getElementById('primary_color').value = this.value; document.getElementById('color-swatch').style.background = this.value;"
+          >
+          <input
+            type="text"
+            id="primary_color"
+            name="primary_color"
+            class="form-control"
+            value="{{ cfg.primary_color or '#2563EB' }}"
+            placeholder="#2563EB"
+            style="font-family:monospace;flex:1;"
+            oninput="syncColorPicker(this.value)"
+          >
+          <div id="color-swatch" class="color-swatch" style="background:{{ cfg.primary_color or '#2563EB' }};"></div>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary">Opslaan</button>
+    </form>
+  </div>
+
+  <!-- Access codes -->
+  <div class="card" style="margin-top:20px;">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Toegangscodes</div>
+        <div class="card-subtitle">Gebruikers loggen in met een toegangscode. Beheerders hebben extra rechten.</div>
+      </div>
+    </div>
+
+    <!-- Add code form -->
+    <form method="post" action="{{ url_for('admin_config') }}" style="margin-bottom:20px;">
+      <input type="hidden" name="action" value="add_code">
+      <div style="display:grid;grid-template-columns:1fr 1fr auto auto;gap:10px;align-items:end;">
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">Code</label>
+          <input type="text" name="new_code" class="form-control" placeholder="geheimecode123" required autocomplete="off">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">Label</label>
+          <input type="text" name="new_label" class="form-control" placeholder="Jan de Vries">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">Beheerder</label>
+          <div style="padding-top:10px;">
+            <label class="form-check">
+              <input type="checkbox" name="new_is_admin" value="1">
+              <span style="font-size:14px;">Ja</span>
+            </label>
+          </div>
+        </div>
+        <div>
+          <button type="submit" class="btn btn-outline">+ Toevoegen</button>
+        </div>
+      </div>
+    </form>
+
+    <!-- Code list -->
+    {% if codes %}
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Label</th>
+              <th>Code</th>
+              <th>Rol</th>
+              <th>Aangemaakt</th>
+              <th>Actie</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in codes %}
+              <tr>
+                <td>{{ c.label or '—' }}</td>
+                <td>
+                  <code style="font-size:13px;background:var(--bg);padding:2px 7px;border-radius:4px;">{{ c.code }}</code>
+                </td>
+                <td>
+                  <span class="badge badge-{{ 'admin' if c.is_admin else 'user' }}">
+                    {{ 'Beheerder' if c.is_admin else 'Gebruiker' }}
+                  </span>
+                </td>
+                <td style="color:var(--muted);font-size:13px;">
+                  {{ c.created_at[:10] if c.created_at else '—' }}
+                </td>
+                <td>
+                  <form method="post" action="{{ url_for('admin_config') }}" style="margin:0;">
+                    <input type="hidden" name="action" value="delete_code">
+                    <input type="hidden" name="code_id" value="{{ c.id }}">
+                    <button
+                      type="submit"
+                      class="btn btn-xs btn-danger-outline"
+                      onclick="return confirm('Toegangscode \'{{ c.label or c.code }}\' verwijderen?')"
+                    >Verwijderen</button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state" style="padding:20px;">
+        <div class="empty-state-body">Nog geen toegangscodes. Voeg er een toe hierboven.</div>
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function syncColorPicker(value) {
+  if (/^#[0-9a-fA-F]{6}$/.test(value)) {
+    document.getElementById('primary_color_picker').value = value;
+    document.getElementById('color-swatch').style.background = value;
+  }
+}
+</script>
+{% endblock %}

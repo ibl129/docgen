@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+
+{% block title %}{{ template.name }} — {{ cfg.tenant_name }}{% endblock %}
+
+{% block content %}
+<div class="page">
+  <div class="breadcrumb">
+    <a href="{{ url_for('index') }}">Sjablonen</a>
+    <span class="breadcrumb-sep">/</span>
+    <span class="breadcrumb-current">{{ template.name }}</span>
+  </div>
+
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">{{ template.name }}</h1>
+      {% if template.description %}
+        <p class="page-subtitle">{{ template.description }}</p>
+      {% endif %}
+    </div>
+    {% if session.get('is_admin') %}
+      <div class="page-actions">
+        <a href="{{ url_for('admin_template_edit', template_id=template.id) }}" class="btn btn-secondary btn-sm">Bewerken</a>
+      </div>
+    {% endif %}
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start;">
+
+    <!-- Fill form -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Document invullen</div>
+          <div class="card-subtitle">Vul de velden in en download het gegenereerde document.</div>
+        </div>
+      </div>
+
+      {% if fields %}
+        <form method="post" action="{{ url_for('template_download', template_id=template.id) }}">
+          {% for field in fields %}
+            <div class="form-group">
+              <label class="form-label" for="field_{{ field.name }}">
+                {{ field.label or field.name }}
+                {% if field.required %}<span class="required">*</span>{% endif %}
+              </label>
+
+              {% if field.type == 'textarea' %}
+                <textarea
+                  id="field_{{ field.name }}"
+                  name="{{ field.name }}"
+                  class="form-control"
+                  rows="3"
+                  {% if field.required %}required{% endif %}
+                  placeholder="{{ field.label or field.name }}"
+                ></textarea>
+
+              {% elif field.type == 'date' %}
+                <input
+                  type="date"
+                  id="field_{{ field.name }}"
+                  name="{{ field.name }}"
+                  class="form-control"
+                  {% if field.required %}required{% endif %}
+                >
+
+              {% elif field.type == 'number' %}
+                <input
+                  type="number"
+                  id="field_{{ field.name }}"
+                  name="{{ field.name }}"
+                  class="form-control"
+                  {% if field.required %}required{% endif %}
+                  placeholder="0"
+                >
+
+              {% elif field.type == 'email' %}
+                <input
+                  type="email"
+                  id="field_{{ field.name }}"
+                  name="{{ field.name }}"
+                  class="form-control"
+                  {% if field.required %}required{% endif %}
+                  placeholder="naam@voorbeeld.nl"
+                >
+
+              {% elif field.type == 'dropdown' %}
+                <select
+                  id="field_{{ field.name }}"
+                  name="{{ field.name }}"
+                  class="form-control"
+                  {% if field.required %}required{% endif %}
+                >
+                  <option value="">— Kies een optie —</option>
+                  {% for opt in (field.options or '').split(',') %}
+                    {% if opt.strip() %}
+                      <option value="{{ opt.strip() }}">{{ opt.strip() }}</option>
+                    {% endif %}
+                  {% endfor %}
+                </select>
+
+              {% else %}
+                <input
+                  type="text"
+                  id="field_{{ field.name }}"
+                  name="{{ field.name }}"
+                  class="form-control"
+                  {% if field.required %}required{% endif %}
+                  placeholder="{{ field.label or field.name }}"
+                >
+              {% endif %}
+            </div>
+          {% endfor %}
+
+          <button type="submit" class="btn btn-primary" style="margin-top:8px;">
+            ↓ Document downloaden
+          </button>
+        </form>
+      {% else %}
+        <div class="empty-state" style="padding:24px;">
+          <div class="empty-state-icon">🔲</div>
+          <div class="empty-state-title">Geen velden gedefinieerd</div>
+          <div class="empty-state-body">Dit sjabloon heeft nog geen velden. Beheerder kan ze toevoegen.</div>
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- Token management -->
+    <div>
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Externe links</div>
+            <div class="card-subtitle">Stuur een link naar een externe partij om het formulier in te laten vullen.</div>
+          </div>
+        </div>
+
+        <form method="post" action="{{ url_for('token_create', template_id=template.id) }}" style="margin-bottom:20px;">
+          <div class="inline-form">
+            <div class="form-group" style="flex:1;">
+              <label class="form-label" for="token_desc">Omschrijving</label>
+              <input
+                type="text"
+                id="token_desc"
+                name="description"
+                class="form-control"
+                placeholder="bv. Klant Jan de Vries"
+              >
+            </div>
+            <button type="submit" class="btn btn-outline btn-sm" style="align-self:flex-end;margin-bottom:0;">
+              + Link aanmaken
+            </button>
+          </div>
+        </form>
+
+        {% if tokens %}
+          <div class="token-list">
+            {% for token in tokens %}
+              {% set token_url = request.host_url.rstrip('/') + url_for('fill_external', token_id=token.id) %}
+              <div class="token-item">
+                <div class="token-info">
+                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+                    <span class="token-desc">{{ token.description or 'Extern formulier' }}</span>
+                    <span class="badge badge-{{ token.status }}">
+                      {% if token.status == 'sealed' %}<i data-lucide="lock" style="width:11px;height:11px;vertical-align:-1px;"></i> Verzegeld{% else %}<i data-lucide="clock" style="width:11px;height:11px;vertical-align:-1px;"></i> Open{% endif %}
+                    </span>
+                  </div>
+                  <div class="token-url-wrap">
+                    <span class="token-url" id="url-{{ token.id }}">{{ token_url }}</span>
+                    <button
+                      class="copy-btn"
+                      title="Kopieer link"
+                      onclick="copyTokenUrl('{{ token.id }}', '{{ token_url }}')"
+                    ><i data-lucide="clipboard" style="width:14px;height:14px;"></i></button>
+                  </div>
+                  <div style="font-size:11px;color:var(--muted);margin-top:3px;">
+                    Aangemaakt {{ token.created_at[:10] if token.created_at else '—' }}
+                  </div>
+                </div>
+                <div class="token-actions">
+                  {% if token.status == 'sealed' %}
+                    <a
+                      href="{{ url_for('token_download', token_id=token.id) }}"
+                      class="btn btn-sm btn-secondary"
+                      title="Download document"
+                    >↓ Download</a>
+                    <form method="post" action="{{ url_for('token_unseal', token_id=token.id) }}" style="margin:0;">
+                      <button type="submit" class="btn btn-sm btn-outline" title="Heropenen" onclick="return confirm('Formulier heropenen?')">
+                        Heropenen
+                      </button>
+                    </form>
+                  {% else %}
+                    <a
+                      href="{{ token_url }}"
+                      target="_blank"
+                      class="btn btn-sm btn-outline"
+                    >↗ Openen</a>
+                  {% endif %}
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="empty-state" style="padding:16px;">
+            <div class="empty-state-icon" style="font-size:24px;">🔗</div>
+            <div class="empty-state-title">Nog geen externe links</div>
+            <div class="empty-state-body">Maak een link aan om een externe partij het formulier te laten invullen.</div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function copyTokenUrl(tokenId, url) {
+  navigator.clipboard.writeText(url).then(() => {
+    const btn = document.querySelector(`[onclick="copyTokenUrl('${tokenId}', '${url}')"]`);
+    if (btn) {
+      btn.innerHTML = '<i data-lucide="check" style="width:14px;height:14px;"></i>';
+      btn.classList.add('copied');
+      lucide.createIcons();
+      setTimeout(() => {
+        btn.innerHTML = '<i data-lucide="clipboard" style="width:14px;height:14px;"></i>';
+        lucide.createIcons();
+        btn.classList.remove('copied');
+      }, 1800);
+    }
+  }).catch(() => {
+    // Fallback for older browsers
+    const el = document.createElement('textarea');
+    el.value = url;
+    document.body.appendChild(el);
+    el.select();
+    document.execCommand('copy');
+    document.body.removeChild(el);
+    alert('Link gekopieerd!');
+  });
+}
+</script>
+{% endblock %}
