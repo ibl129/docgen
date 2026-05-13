@@ -68,7 +68,7 @@
         {% if dossier_afgesloten %}
           <div class="card" style="margin-bottom:20px;">
             <div class="empty-state" style="padding:24px;">
-              <div class="empty-state-icon">🔒</div>
+              <div class="empty-state-icon"><i data-lucide="lock" style="width:32px;height:32px;color:var(--muted);"></i></div>
               <div class="empty-state-title">Dit dossier is afgesloten</div>
               <div class="empty-state-body">De gegevens kunnen niet meer worden aangepast.</div>
             </div>
@@ -78,7 +78,7 @@
         {% if not invullingen %}
           <div class="card">
             <div class="empty-state">
-              <div class="empty-state-icon">🔒</div>
+              <div class="empty-state-icon"><i data-lucide="lock" style="width:32px;height:32px;color:var(--muted);"></i></div>
               <div class="empty-state-title">Dit dossier is nog niet gedeeld.</div>
               <div class="empty-state-body">Neem contact op met de afzender als je dit onverwacht ziet.</div>
             </div>

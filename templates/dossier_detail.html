@@ -64,6 +64,21 @@
                     <label class="form-label" for="f_{{ inv.id }}_{{ field.name }}">
                       {{ field.label or field.name }}
                       {% if field.required %}<span class="required">*</span>{% endif %}
+                      {% if field.eigenaar == 'extern' %}
+                        {% if inv.extern_toegang == 'invulbaar' %}
+                          <span class="field-extern-badge field-extern-invulbaar" title="Extern invulbaar"><i data-lucide="pencil" style="width:10px;height:10px;vertical-align:-1px;"></i> Extern</span>
+                        {% elif inv.extern_toegang == 'leesbaar' %}
+                          <span class="field-extern-badge field-extern-leesbaar" title="Extern leesbaar"><i data-lucide="eye" style="width:10px;height:10px;vertical-align:-1px;"></i> Extern</span>
+                        {% else %}
+                          <span class="field-extern-badge field-extern-verborgen" title="Verborgen voor extern"><i data-lucide="eye-off" style="width:10px;height:10px;vertical-align:-1px;"></i> Verborgen</span>
+                        {% endif %}
+                      {% elif inv.extern_toegang != 'verborgen' %}
+                        {% if inv.extern_toegang == 'leesbaar' %}
+                          <span class="field-extern-badge field-extern-leesbaar" title="Extern leesbaar"><i data-lucide="eye" style="width:10px;height:10px;vertical-align:-1px;"></i> Leesbaar</span>
+                        {% elif inv.extern_toegang == 'invulbaar' %}
+                          <span class="field-extern-badge field-extern-leesbaar" title="Extern leesbaar (intern veld)"><i data-lucide="eye" style="width:10px;height:10px;vertical-align:-1px;"></i> Leesbaar</span>
+                        {% endif %}
+                      {% endif %}
                     </label>
 
                     {% set current_val = inv.waarden.get(field.name, '') %}

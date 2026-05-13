@@ -1311,6 +1311,30 @@ tbody tr:hover { background: #fafbfc; }
   color: var(--muted);
 }
 
+.field-extern-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: 999px;
+  vertical-align: middle;
+  margin-left: 6px;
+}
+.field-extern-invulbaar {
+  background: var(--success-light);
+  color: #166534;
+}
+.field-extern-leesbaar {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+.field-extern-verborgen {
+  background: var(--bg);
+  color: var(--muted);
+}
+
 /* ── Readonly value display (extern, leesbaar modus) ── */
 .readonly-value {
   padding: 10px 14px;
