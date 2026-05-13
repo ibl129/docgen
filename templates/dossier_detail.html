@@ -32,12 +32,22 @@
         {% for inv in invullingen %}
           <div class="invulling-card" id="inv-{{ inv.id }}">
             <div class="invulling-card-header">
-              <div style="display:flex;align-items:center;gap:10px;">
+              <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
                 <span class="invulling-card-title">{{ inv.template.name if inv.template else '—' }}</span>
                 {% if inv.is_filled %}
                   <span class="badge badge-sealed"><i data-lucide="check" style="width:11px;height:11px;vertical-align:-1px;"></i> Opgeslagen</span>
                 {% else %}
                   <span class="badge badge-concept"><i data-lucide="circle" style="width:9px;height:9px;vertical-align:-1px;"></i> Concept</span>
+                {% endif %}
+                {% if inv.extern_status == 'verzonden' %}
+                  <span class="badge badge-invulbaar"><i data-lucide="send" style="width:10px;height:10px;vertical-align:-1px;"></i> Extern verzonden</span>
+                  {% if dossier.status != 'afgerond' %}
+                    <form method="post" action="{{ url_for('dossier_invulling_heropenen', dossier_id=dossier.id, inv_id=inv.id) }}" style="margin:0;">
+                      <button type="submit" class="btn btn-xs btn-outline" title="Sta externe partij toe opnieuw aan te passen">
+                        <i data-lucide="rotate-ccw" style="width:11px;height:11px;vertical-align:-1px;"></i> Heropenen
+                      </button>
+                    </form>
+                  {% endif %}
                 {% endif %}
               </div>
               <a

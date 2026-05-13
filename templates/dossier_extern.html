@@ -63,8 +63,17 @@
           {% endif %}
         </div>
 
-        {% set has_visible = invullingen | selectattr('extern_toegang', 'ne', 'verborgen') | list %}
-        {% set has_invulbaar = invullingen | selectattr('extern_toegang', 'equalto', 'invulbaar') | list %}
+        {% set has_invulbaar_open = invullingen | selectattr('effective_toegang', 'equalto', 'invulbaar') | list %}
+
+        {% if dossier_afgesloten %}
+          <div class="card" style="margin-bottom:20px;">
+            <div class="empty-state" style="padding:24px;">
+              <div class="empty-state-icon">🔒</div>
+              <div class="empty-state-title">Dit dossier is afgesloten</div>
+              <div class="empty-state-body">De gegevens kunnen niet meer worden aangepast.</div>
+            </div>
+          </div>
+        {% endif %}
 
         {% if not invullingen %}
           <div class="card">
@@ -81,7 +90,13 @@
               <div class="invulling-card" style="margin-bottom:20px;">
                 <div class="invulling-card-header" style="margin-bottom:16px;">
                   <span class="invulling-card-title">{{ inv.template.name if inv.template else '—' }}</span>
-                  {% if inv.extern_toegang == 'invulbaar' %}
+                  {% if inv.vergrendeld %}
+                    {% if inv.extern_status == 'verzonden' %}
+                      <span class="badge badge-sealed"><i data-lucide="check" style="width:11px;height:11px;vertical-align:-1px;"></i> Verzonden</span>
+                    {% else %}
+                      <span class="badge badge-sealed">Afgesloten</span>
+                    {% endif %}
+                  {% elif inv.effective_toegang == 'invulbaar' %}
                     <span class="badge badge-invulbaar">Invullen vereist</span>
                   {% else %}
                     <span class="badge badge-leesbaar">Alleen lezen</span>
@@ -93,7 +108,7 @@
                     <div class="form-group">
                       <label class="form-label" for="ef_{{ inv.id }}_{{ field.name }}">
                         {{ field.label or field.name }}
-                        {% if field.required and inv.extern_toegang == 'invulbaar' %}
+                        {% if field.required and inv.effective_toegang == 'invulbaar' %}
                           <span class="required">*</span>
                         {% endif %}
                       </label>
@@ -101,10 +116,10 @@
                       {% set current_val = inv.waarden.get(field.name, '') %}
                       {% set prefill_val = prefill.get(inv.id ~ '_' ~ field.name, current_val) %}
 
-                      {% if inv.extern_toegang == 'leesbaar' %}
+                      {% if inv.effective_toegang == 'leesbaar' or inv.vergrendeld %}
                         <div class="readonly-value">{{ current_val if current_val else '—' }}</div>
 
-                      {% elif inv.extern_toegang == 'invulbaar' %}
+                      {% elif inv.effective_toegang == 'invulbaar' %}
                         {% if field.type == 'textarea' %}
                           <textarea
                             id="ef_{{ inv.id }}_{{ field.name }}"
@@ -184,13 +199,13 @@
               </div>
             {% endfor %}
 
-            {% if has_invulbaar %}
+            {% if has_invulbaar_open and not dossier_afgesloten %}
               <div style="margin-top:8px;margin-bottom:32px;">
                 <button type="submit" class="btn btn-primary btn-full">
-                  Gegevens versturen <i data-lucide="arrow-right" style="width:15px;height:15px;vertical-align:-2px;margin-left:4px;"></i>
+                  Gegevens verzenden <i data-lucide="arrow-right" style="width:15px;height:15px;vertical-align:-2px;margin-left:4px;"></i>
                 </button>
                 <p style="font-size:12px;color:var(--muted);text-align:center;margin-top:12px;">
-                  Je antwoorden worden opgeslagen en doorgezet naar {{ cfg.tenant_name }}.
+                  Na het verzenden worden je antwoorden vergrendeld. De afzender kan je uitnodigen om opnieuw aan te passen.
                 </p>
               </div>
             {% endif %}

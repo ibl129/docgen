@@ -1464,6 +1464,20 @@ def dossier_bewerken(dossier_id):
     return redirect(url_for("dossier_detail", dossier_id=dossier_id))
 
 
+@app.route("/dossier/<dossier_id>/invulling/<inv_id>/heropenen", methods=["POST"])
+@login_required
+def dossier_invulling_heropenen(dossier_id, inv_id):
+    try:
+        supabase.table("invullingen").update({
+            "extern_status": "open",
+            "updated_at": datetime.utcnow().isoformat(),
+        }).eq("id", inv_id).eq("dossier_id", dossier_id).execute()
+        flash("Invulling heropend — de externe partij kan opnieuw aanpassen.", "success")
+    except Exception as e:
+        flash(f"Fout bij heropenen: {e}", "error")
+    return redirect(url_for("dossier_detail", dossier_id=dossier_id))
+
+
 @app.route("/dossier/<dossier_id>/token/aanmaken", methods=["POST"])
 @login_required
 def dossier_token_aanmaken(dossier_id):
@@ -1525,6 +1539,9 @@ def dossier_extern(token_id):
 
     dossier = dos_res.data
 
+    # Dossier afgesloten: externe pagina altijd vergrendeld
+    dossier_afgesloten = dossier.get("status") == "afgerond"
+
     try:
         inv_res = supabase.table("invullingen").select("*").eq("dossier_id", dossier_id).execute()
         invullingen_raw = inv_res.data or []
@@ -1552,24 +1569,40 @@ def dossier_extern(token_id):
             visible_fields = [f for f in all_fields if f.get("eigenaar") == "extern"]
         else:
             visible_fields = all_fields
+        # Invulling vergrendeld als dossier afgerond is of extern_status == verzonden
+        invulling_vergrendeld = (
+            dossier_afgesloten or
+            inv.get("extern_status") == "verzonden"
+        )
+        # Overschrijf toegang naar leesbaar als vergrendeld maar niet verborgen
+        effective_toegang = inv.get("extern_toegang", "verborgen")
+        if invulling_vergrendeld and effective_toegang == "invulbaar":
+            effective_toegang = "leesbaar"
+
         invullingen.append({
             **inv,
             "template": tmpl,
             "fields": visible_fields,
             "waarden": waarden,
+            "effective_toegang": effective_toegang,
+            "vergrendeld": invulling_vergrendeld,
         })
 
     if request.method == "POST":
+        # Blokkeer POST als dossier afgerond
+        if dossier_afgesloten:
+            flash("Dit dossier is afgesloten en kan niet meer worden bewerkt.", "error")
+            return redirect(url_for("dossier_extern", token_id=token_id))
+
         errors = []
-        # Process all invulbare invullingen
         for inv in invullingen:
             if inv["extern_toegang"] != "invulbaar":
                 continue
-            # Preserve existing waarden; only overwrite extern fields
+            if inv["vergrendeld"]:
+                continue
             existing_waarden = inv.get("waarden") or {}
             new_waarden = dict(existing_waarden)
             for field in inv["fields"]:
-                # inv["fields"] is already filtered to extern fields only (eigenaar == "extern")
                 key = field["name"]
                 val = request.form.get(f"{inv['id']}_{key}", "").strip()
                 if field.get("required") and not val:
@@ -1580,6 +1613,7 @@ def dossier_extern(token_id):
                 try:
                     supabase.table("invullingen").update({
                         "waarden": new_waarden,
+                        "extern_status": "verzonden",
                         "updated_at": datetime.utcnow().isoformat(),
                     }).eq("id", inv["id"]).execute()
                 except Exception as e:
@@ -1592,6 +1626,7 @@ def dossier_extern(token_id):
                 "dossier_extern.html",
                 cfg=cfg,
                 dossier=dossier,
+                dossier_afgesloten=dossier_afgesloten,
                 invullingen=invullingen,
                 token=token,
                 prefill=request.form,
@@ -1603,6 +1638,7 @@ def dossier_extern(token_id):
         "dossier_extern.html",
         cfg=cfg,
         dossier=dossier,
+        dossier_afgesloten=dossier_afgesloten,
         invullingen=invullingen,
         token=token,
         prefill={},
