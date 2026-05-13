@@ -91,6 +91,27 @@
           {{ app_footer.url_label or app_footer.url }}
         </a>
       {% endif %}
+      {% if app_footer.berichten %}
+        <span class="app-footer-sep">·</span>
+        <span class="app-footer-ticker" id="app-footer-ticker">
+          {% for bericht in app_footer.berichten %}
+            <span class="app-footer-bericht{% if loop.first %} actief{% endif %}">{{ bericht }}</span>
+          {% endfor %}
+        </span>
+        <script>
+        (function() {
+          var berichten = document.querySelectorAll('#app-footer-ticker .app-footer-bericht');
+          if (berichten.length <= 1) return;
+          var huidig = 0;
+          var interval = {{ app_footer.bericht_interval * 1000 }};
+          setInterval(function() {
+            berichten[huidig].classList.remove('actief');
+            huidig = (huidig + 1) % berichten.length;
+            berichten[huidig].classList.add('actief');
+          }, interval);
+        })();
+        </script>
+      {% endif %}
     </div>
   </footer>
   {% endif %}
