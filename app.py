@@ -57,7 +57,7 @@ def set_config(key: str, value: str) -> None:
 def login_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        if not session.get("user_code"):
+        if not session.get("user_id"):
             return redirect(url_for("login"))
         return f(*args, **kwargs)
     return decorated
@@ -66,9 +66,9 @@ def login_required(f):
 def admin_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        if not session.get("user_code"):
+        if not session.get("user_id"):
             return redirect(url_for("login"))
-        if not session.get("is_admin"):
+        if session.get("user_role") != "admin":
             flash("Je hebt geen toegang tot dit onderdeel.", "error")
             return redirect(url_for("index"))
         return f(*args, **kwargs)
@@ -387,31 +387,40 @@ def fill_template(docx_bytes: bytes, values: dict) -> bytes:
 def login():
     cfg = get_config()
     if request.method == "POST":
-        code = request.form.get("code", "").strip()
-        if not code:
-            flash("Voer een toegangscode in.", "error")
+        email = request.form.get("email", "").strip()
+        password = request.form.get("password", "")
+        if not email or not password:
+            flash("Voer je e-mailadres en wachtwoord in.", "error")
             return render_template("login.html", cfg=cfg)
 
         try:
-            row = supabase.table("access_codes").select("*").eq("code", code).single().execute()
+            auth_res = supabase.auth.sign_in_with_password({"email": email, "password": password})
         except Exception as e:
             app.logger.error(f"Supabase login fout: {e}")
-            row = None
+            flash("Ongeldige inloggegevens.", "error")
+            return render_template("login.html", cfg=cfg)
 
-        app.logger.info(f"Login poging code={code!r} row={row}")
-        if row and row.data:
-            session["user_code"] = row.data["code"]
-            session["user_label"] = row.data.get("label", code)
-            session["is_admin"] = bool(row.data.get("is_admin", False))
+        user = auth_res.user if auth_res else None
+        app.logger.info(f"Login poging email={email!r} user={user}")
+        if user:
+            metadata = user.user_metadata or {}
+            session["user_id"] = str(user.id)
+            session["user_email"] = user.email
+            session["user_role"] = metadata.get("role", "user")
+            session["user_name"] = metadata.get("name", "")
             return redirect(url_for("index"))
         else:
-            flash("Ongeldige toegangscode.", "error")
+            flash("Ongeldige inloggegevens.", "error")
 
     return render_template("login.html", cfg=cfg)
 
 
 @app.route("/logout")
 def logout():
+    try:
+        supabase.auth.sign_out()
+    except Exception:
+        pass
     session.clear()
     return redirect(url_for("login"))
 
@@ -488,7 +497,7 @@ def template_download(template_id):
 
     values = format_field_values(fields, values)
     cfg = get_config()
-    system_vals = build_system_values(cfg, user_label=session.get("user_label", ""))
+    system_vals = build_system_values(cfg, user_label=session.get("user_name", session.get("user_email", "")))
     values = {**system_vals, **values}
 
     try:
@@ -584,7 +593,7 @@ def token_download(token_id):
         t_fields = json.loads(t_fields)
     values = format_field_values(t_fields, values)
     cfg = get_config()
-    system_vals = build_system_values(cfg, user_label=session.get("user_label", ""))
+    system_vals = build_system_values(cfg, user_label=session.get("user_name", session.get("user_email", "")))
     values = {**system_vals, **values}
 
     try:
@@ -714,12 +723,6 @@ def admin():
         templates = []
 
     try:
-        codes_res = supabase.table("access_codes").select("*").order("created_at", desc=True).execute()
-        codes = codes_res.data or []
-    except Exception:
-        codes = []
-
-    try:
         tokens_res = supabase.table("tokens").select("id,status").execute()
         token_stats = {
             "total": len(tokens_res.data or []),
@@ -733,7 +736,6 @@ def admin():
         "admin.html",
         cfg=cfg,
         templates=templates,
-        codes=codes,
         token_stats=token_stats,
         system_variables=SYSTEM_VARIABLES,
     )
@@ -940,41 +942,45 @@ def admin_config():
             flash("Configuratie opgeslagen.", "success")
             return redirect(url_for("admin_config"))
 
-        if action == "add_code":
-            code = request.form.get("new_code", "").strip()
-            label = request.form.get("new_label", "").strip()
-            is_admin = request.form.get("new_is_admin") == "1"
+        if action == "add_user":
+            new_name = request.form.get("new_name", "").strip()
+            new_email = request.form.get("new_email", "").strip()
+            new_password = request.form.get("new_password", "").strip()
+            new_role = request.form.get("new_role", "user")
+            if new_role not in ("admin", "user"):
+                new_role = "user"
 
-            if not code:
-                flash("Toegangscode is verplicht.", "error")
+            if not new_email or not new_password:
+                flash("E-mailadres en wachtwoord zijn verplicht.", "error")
             else:
                 try:
-                    supabase.table("access_codes").insert({
-                        "code": code,
-                        "label": label or code,
-                        "is_admin": is_admin,
-                    }).execute()
-                    flash("Toegangscode aangemaakt.", "success")
+                    supabase.auth.admin.create_user({
+                        "email": new_email,
+                        "password": new_password,
+                        "user_metadata": {"name": new_name, "role": new_role},
+                        "email_confirm": True,
+                    })
+                    flash("Gebruiker aangemaakt.", "success")
                 except Exception as e:
                     flash(f"Fout: {e}", "error")
             return redirect(url_for("admin_config"))
 
-        if action == "delete_code":
-            code_id = request.form.get("code_id")
+        if action == "delete_user":
+            user_id = request.form.get("user_id")
             try:
-                supabase.table("access_codes").delete().eq("id", code_id).execute()
-                flash("Toegangscode verwijderd.", "success")
+                supabase.auth.admin.delete_user(user_id)
+                flash("Gebruiker verwijderd.", "success")
             except Exception as e:
                 flash(f"Fout: {e}", "error")
             return redirect(url_for("admin_config"))
 
     try:
-        codes_res = supabase.table("access_codes").select("*").order("created_at", desc=True).execute()
-        codes = codes_res.data or []
+        users_res = supabase.auth.admin.list_users()
+        users = users_res if isinstance(users_res, list) else []
     except Exception:
-        codes = []
+        users = []
 
-    return render_template("admin_config.html", cfg=cfg, codes=codes)
+    return render_template("admin_config.html", cfg=cfg, users=users)
 
 
 @app.route("/admin/submissions")
@@ -1072,24 +1078,33 @@ def dossier_nieuw():
         naam = request.form.get("naam", "").strip()
         omschrijving = request.form.get("omschrijving", "").strip()
         template_ids = request.form.getlist("template_ids")
+        jaar_raw = request.form.get("jaar", "").strip()
+        financieringsvorm = request.form.get("financieringsvorm", "").strip() or None
+
+        try:
+            jaar = int(jaar_raw) if jaar_raw else None
+        except ValueError:
+            jaar = None
 
         if not naam:
             flash("Naam is verplicht.", "error")
-            return render_template("dossier_nieuw.html", cfg=cfg, templates=templates)
+            return render_template("dossier_nieuw.html", cfg=cfg, templates=templates, now=datetime.now())
 
         if not template_ids:
             flash("Selecteer minimaal één sjabloon.", "error")
-            return render_template("dossier_nieuw.html", cfg=cfg, templates=templates)
+            return render_template("dossier_nieuw.html", cfg=cfg, templates=templates, now=datetime.now())
 
         try:
             dos_res = supabase.table("dossiers").insert({
                 "naam": naam,
                 "omschrijving": omschrijving or None,
+                "jaar": jaar,
+                "financieringsvorm": financieringsvorm,
             }).execute()
             dossier_id = dos_res.data[0]["id"]
         except Exception as e:
             flash(f"Fout bij aanmaken dossier: {e}", "error")
-            return render_template("dossier_nieuw.html", cfg=cfg, templates=templates)
+            return render_template("dossier_nieuw.html", cfg=cfg, templates=templates, now=datetime.now())
 
         for tid in template_ids:
             try:
@@ -1105,7 +1120,7 @@ def dossier_nieuw():
         flash("Dossier aangemaakt.", "success")
         return redirect(url_for("dossier_detail", dossier_id=dossier_id))
 
-    return render_template("dossier_nieuw.html", cfg=cfg, templates=templates)
+    return render_template("dossier_nieuw.html", cfg=cfg, templates=templates, now=datetime.now())
 
 
 @app.route("/dossier/<dossier_id>")
@@ -1186,8 +1201,17 @@ def dossier_invulling_opslaan(dossier_id, inv_id):
     if isinstance(fields, str):
         fields = json.loads(fields)
 
-    waarden = {}
+    # Start from existing waarden to preserve extern-filled values
+    existing_waarden = inv.get("waarden") or {}
+    if isinstance(existing_waarden, str):
+        import json as _json
+        existing_waarden = _json.loads(existing_waarden)
+
+    waarden = dict(existing_waarden)
     for field in fields:
+        # Only save fields that are intern (eigenaar != "extern")
+        if field.get("eigenaar") == "extern":
+            continue
         key = field["name"]
         waarden[key] = request.form.get(key, "")
 
@@ -1251,7 +1275,7 @@ def dossier_invulling_download(dossier_id, inv_id):
         dossier=dossier,
         templates_in_dossier=templates_in_dossier,
         positie=positie,
-        user_label=session.get("user_label", ""),
+        user_label=session.get("user_name", session.get("user_email", "")),
     )
     waarden = {**system_vals, **waarden}
 
@@ -1391,16 +1415,21 @@ def dossier_extern(token_id):
             tmpl = tmpl_res.data or {}
         except Exception:
             tmpl = {}
-        fields = tmpl.get("fields") or []
-        if isinstance(fields, str):
-            fields = json.loads(fields)
+        all_fields = tmpl.get("fields") or []
+        if isinstance(all_fields, str):
+            all_fields = json.loads(all_fields)
         waarden = inv.get("waarden") or {}
         if isinstance(waarden, str):
             waarden = json.loads(waarden)
+        # For invulbare invullingen, only expose extern fields to the external view
+        if inv.get("extern_toegang") == "invulbaar":
+            visible_fields = [f for f in all_fields if f.get("eigenaar") == "extern"]
+        else:
+            visible_fields = all_fields
         invullingen.append({
             **inv,
             "template": tmpl,
-            "fields": fields,
+            "fields": visible_fields,
             "waarden": waarden,
         })
 
@@ -1410,18 +1439,21 @@ def dossier_extern(token_id):
         for inv in invullingen:
             if inv["extern_toegang"] != "invulbaar":
                 continue
-            waarden = {}
+            # Preserve existing waarden; only overwrite extern fields
+            existing_waarden = inv.get("waarden") or {}
+            new_waarden = dict(existing_waarden)
             for field in inv["fields"]:
+                # inv["fields"] is already filtered to extern fields only (eigenaar == "extern")
                 key = field["name"]
                 val = request.form.get(f"{inv['id']}_{key}", "").strip()
                 if field.get("required") and not val:
                     errors.append(f'"{field.get("label", key)}" is verplicht.')
-                waarden[key] = val
+                new_waarden[key] = val
 
             if not errors:
                 try:
                     supabase.table("invullingen").update({
-                        "waarden": waarden,
+                        "waarden": new_waarden,
                         "updated_at": datetime.utcnow().isoformat(),
                     }).eq("id", inv["id"]).execute()
                 except Exception as e:

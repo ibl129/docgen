@@ -43,15 +43,27 @@
 
       <form method="post" action="{{ url_for('login') }}">
         <div class="form-group">
-          <label class="form-label" for="code">Toegangscode</label>
+          <label class="form-label" for="email">E-mailadres</label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            class="form-control"
+            placeholder="naam@voorbeeld.nl"
+            autocomplete="email"
+            autofocus
+            required
+          >
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="password">Wachtwoord</label>
           <input
             type="password"
-            id="code"
-            name="code"
+            id="password"
+            name="password"
             class="form-control"
-            placeholder="Voer je toegangscode in"
+            placeholder="Voer je wachtwoord in"
             autocomplete="current-password"
-            autofocus
             required
           >
         </div>

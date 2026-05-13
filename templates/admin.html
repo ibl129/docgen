@@ -99,26 +99,15 @@
     {% endif %}
   </div>
 
-  <!-- Access codes summary -->
+  <!-- Gebruikersbeheer summary -->
   <div class="card" style="margin-top:20px;">
     <div class="card-header">
       <div>
-        <div class="card-title">Toegangscodes</div>
-        <div class="card-subtitle">{{ codes | length }} code{{ 's' if codes | length != 1 else '' }} actief.</div>
+        <div class="card-title">Gebruikers</div>
+        <div class="card-subtitle">Beheer gebruikers en rollen via de instellingen.</div>
       </div>
       <a href="{{ url_for('admin_config') }}" class="btn btn-sm btn-secondary">Beheren</a>
     </div>
-    {% if codes %}
-      <div style="display:flex;flex-wrap:wrap;gap:6px;">
-        {% for c in codes %}
-          <span class="badge badge-{{ 'admin' if c.is_admin else 'user' }}">
-            {% if c.is_admin %}<i data-lucide="shield" style="width:12px;height:12px;vertical-align:-1px;margin-right:3px;"></i>{% else %}<i data-lucide="user" style="width:12px;height:12px;vertical-align:-1px;margin-right:3px;"></i>{% endif %}{{ c.label or c.code }}
-          </span>
-        {% endfor %}
-      </div>
-    {% else %}
-      <p style="color:var(--muted);font-size:14px;">Nog geen toegangscodes.</p>
-    {% endif %}
   </div>
 
   <!-- Systeemvariabelen -->

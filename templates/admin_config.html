@@ -85,35 +85,37 @@
     </form>
   </div>
 
-  <!-- Access codes -->
+  <!-- User management -->
   <div class="card" style="margin-top:20px;">
     <div class="card-header">
       <div>
-        <div class="card-title">Toegangscodes</div>
-        <div class="card-subtitle">Gebruikers loggen in met een toegangscode. Beheerders hebben extra rechten.</div>
+        <div class="card-title">Gebruikers</div>
+        <div class="card-subtitle">Gebruikers loggen in met e-mailadres en wachtwoord. Beheerders hebben extra rechten.</div>
       </div>
     </div>
 
-    <!-- Add code form -->
+    <!-- Add user form -->
     <form method="post" action="{{ url_for('admin_config') }}" style="margin-bottom:20px;">
-      <input type="hidden" name="action" value="add_code">
-      <div style="display:grid;grid-template-columns:1fr 1fr auto auto;gap:10px;align-items:end;">
+      <input type="hidden" name="action" value="add_user">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto auto;gap:10px;align-items:end;">
         <div class="form-group" style="margin-bottom:0;">
-          <label class="form-label">Code</label>
-          <input type="text" name="new_code" class="form-control" placeholder="geheimecode123" required autocomplete="off">
+          <label class="form-label">Naam</label>
+          <input type="text" name="new_name" class="form-control" placeholder="Jan de Vries" autocomplete="off">
         </div>
         <div class="form-group" style="margin-bottom:0;">
-          <label class="form-label">Label</label>
-          <input type="text" name="new_label" class="form-control" placeholder="Jan de Vries">
+          <label class="form-label">E-mailadres <span class="required">*</span></label>
+          <input type="email" name="new_email" class="form-control" placeholder="jan@voorbeeld.nl" required autocomplete="off">
         </div>
         <div class="form-group" style="margin-bottom:0;">
-          <label class="form-label">Beheerder</label>
-          <div style="padding-top:10px;">
-            <label class="form-check">
-              <input type="checkbox" name="new_is_admin" value="1">
-              <span style="font-size:14px;">Ja</span>
-            </label>
-          </div>
+          <label class="form-label">Wachtwoord <span class="required">*</span></label>
+          <input type="password" name="new_password" class="form-control" placeholder="Tijdelijk wachtwoord" required autocomplete="new-password">
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">Rol</label>
+          <select name="new_role" class="form-control">
+            <option value="user">Gebruiker</option>
+            <option value="admin">Beheerder</option>
+          </select>
         </div>
         <div>
           <button type="submit" class="btn btn-outline">+ Toevoegen</button>
@@ -121,42 +123,41 @@
       </div>
     </form>
 
-    <!-- Code list -->
-    {% if codes %}
+    <!-- User list -->
+    {% if users %}
       <div class="table-wrap">
         <table>
           <thead>
             <tr>
-              <th>Label</th>
-              <th>Code</th>
+              <th>Naam</th>
+              <th>E-mailadres</th>
               <th>Rol</th>
               <th>Aangemaakt</th>
               <th>Actie</th>
             </tr>
           </thead>
           <tbody>
-            {% for c in codes %}
+            {% for u in users %}
+              {% set meta = u.user_metadata or {} %}
               <tr>
-                <td>{{ c.label or '—' }}</td>
+                <td>{{ meta.get('name', '') or '—' }}</td>
+                <td>{{ u.email or '—' }}</td>
                 <td>
-                  <code style="font-size:13px;background:var(--bg);padding:2px 7px;border-radius:4px;">{{ c.code }}</code>
-                </td>
-                <td>
-                  <span class="badge badge-{{ 'admin' if c.is_admin else 'user' }}">
-                    {{ 'Beheerder' if c.is_admin else 'Gebruiker' }}
+                  <span class="badge badge-{{ 'admin' if meta.get('role') == 'admin' else 'user' }}">
+                    {{ 'Beheerder' if meta.get('role') == 'admin' else 'Gebruiker' }}
                   </span>
                 </td>
                 <td style="color:var(--muted);font-size:13px;">
-                  {{ c.created_at[:10] if c.created_at else '—' }}
+                  {{ u.created_at[:10] if u.created_at else '—' }}
                 </td>
                 <td>
                   <form method="post" action="{{ url_for('admin_config') }}" style="margin:0;">
-                    <input type="hidden" name="action" value="delete_code">
-                    <input type="hidden" name="code_id" value="{{ c.id }}">
+                    <input type="hidden" name="action" value="delete_user">
+                    <input type="hidden" name="user_id" value="{{ u.id }}">
                     <button
                       type="submit"
                       class="btn btn-xs btn-danger-outline"
-                      onclick="return confirm('Toegangscode \'{{ c.label or c.code }}\' verwijderen?')"
+                      onclick="return confirm('Gebruiker \'{{ u.email }}\' verwijderen?')"
                     >Verwijderen</button>
                   </form>
                 </td>
@@ -167,7 +168,7 @@
       </div>
     {% else %}
       <div class="empty-state" style="padding:20px;">
-        <div class="empty-state-body">Nog geen toegangscodes. Voeg er een toe hierboven.</div>
+        <div class="empty-state-body">Nog geen gebruikers. Voeg er een toe hierboven.</div>
       </div>
     {% endif %}
   </div>

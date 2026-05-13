@@ -31,6 +31,8 @@
           <div class="dossier-card-meta">
             <span>{{ dos.invulling_count }} invulling{% if dos.invulling_count != 1 %}en{% endif %}</span>
             <span>·</span>
+            {% if dos.jaar %}<span>{{ dos.jaar }}</span><span>·</span>{% endif %}
+            {% if dos.financieringsvorm %}<span>{{ dos.financieringsvorm }}</span><span>·</span>{% endif %}
             <span>{{ dos.created_at[:10] if dos.created_at else '—' }}</span>
           </div>
         </a>

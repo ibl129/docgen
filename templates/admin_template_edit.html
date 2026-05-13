@@ -203,6 +203,13 @@
         </div>
       </div>
       <div>
+        <label>Eigenaar</label>
+        <select class="form-control" onchange="updateField(${idx}, 'eigenaar', this.value)">
+          <option value="" ${!field.eigenaar || field.eigenaar === '' ? 'selected' : ''}>Intern</option>
+          <option value="extern" ${field.eigenaar === 'extern' ? 'selected' : ''}>Extern</option>
+        </select>
+      </div>
+      <div>
         <label>&nbsp;</label>
         <button
           type="button"
@@ -275,7 +282,7 @@
   }
 
   document.getElementById('add-field-btn').addEventListener('click', () => {
-    fields.push({ name: '', label: '', type: 'text', required: false, options: '' });
+    fields.push({ name: '', label: '', type: 'text', required: false, options: '', eigenaar: '' });
     render();
     // Focus the last name input
     setTimeout(() => {
@@ -330,7 +337,7 @@
         const nieuw = data.placeholders.filter(p => !bestaand.has(p));
 
         nieuw.forEach(p => {
-          fields.push({ name: p, label: '', type: 'text', required: false, options: '' });
+          fields.push({ name: p, label: '', type: 'text', required: false, options: '', eigenaar: '' });
         });
         render();
 

@@ -9,7 +9,7 @@
       <h1 class="page-title">Sjablonen</h1>
       <p class="page-subtitle">Kies een sjabloon om een document mee te genereren.</p>
     </div>
-    {% if session.get('is_admin') %}
+    {% if session.get('user_role') == 'admin' %}
       <div class="page-actions">
         <a href="{{ url_for('admin_template_new') }}" class="btn btn-primary">+ Nieuw sjabloon</a>
       </div>
@@ -39,7 +39,7 @@
         <div class="empty-state-icon"><i data-lucide="folder-open"></i></div>
         <div class="empty-state-title">Nog geen sjablonen</div>
         <div class="empty-state-body">
-          {% if session.get('is_admin') %}
+          {% if session.get('user_role') == 'admin' %}
             <a href="{{ url_for('admin_template_new') }}">Maak je eerste sjabloon aan</a> om te beginnen.
           {% else %}
             Er zijn nog geen sjablonen beschikbaar. Neem contact op met de beheerder.
