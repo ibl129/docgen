@@ -1516,8 +1516,9 @@ tbody tr:hover { background: #fafbfc; }
   pointer-events: none;
   position: absolute;
   top: 0;
-  left: 0;
+  right: 0;
   white-space: nowrap;
+  text-align: right;
 }
 .app-footer-bericht.actief {
   opacity: 1;
