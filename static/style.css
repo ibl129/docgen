@@ -1311,29 +1311,32 @@ tbody tr:hover { background: #fafbfc; }
   color: var(--muted);
 }
 
-.field-extern-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  font-size: 10px;
-  font-weight: 500;
-  padding: 1px 6px;
-  border-radius: 999px;
+.veld-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
   vertical-align: middle;
-  margin-left: 6px;
+  margin-left: 5px;
+  flex-shrink: 0;
 }
-.field-extern-invulbaar {
-  background: var(--success-light);
-  color: #166534;
-}
-.field-extern-leesbaar {
-  background: #eff6ff;
-  color: #1d4ed8;
-}
-.field-extern-verborgen {
-  background: var(--bg);
+.veld-dot-intern    { background: #d1d5db; }
+.veld-dot-leesbaar  { background: #93c5fd; }
+.veld-dot-invulbaar { background: #86efac; }
+.veld-dot-verborgen { background: #fca5a5; }
+
+.veld-legenda {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
   color: var(--muted);
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  margin-bottom: 16px;
 }
+.veld-legenda span { line-height: 1; }
 
 /* ── Readonly value display (extern, leesbaar modus) ── */
 .readonly-value {
