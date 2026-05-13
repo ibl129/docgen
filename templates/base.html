@@ -29,11 +29,11 @@
       </a>
       <nav class="topbar-nav">
         {% if session.get('user_id') %}
-          <a href="{{ url_for('index') }}" class="topbar-link {% if request.endpoint == 'index' %}active{% endif %}">Sjablonen</a>
           <a href="{{ url_for('dossiers_overzicht') }}" class="topbar-link {% if request.endpoint and request.endpoint.startswith('dossier') %}active{% endif %}">Dossiers</a>
           <a href="{{ url_for('inzendingen_overzicht') }}" class="topbar-link {% if request.endpoint == 'inzendingen_overzicht' %}active{% endif %}">
             Inzendingen{% if ongelezen_inzendingen > 0 %}<span class="nav-badge">{{ ongelezen_inzendingen }}</span>{% endif %}
           </a>
+          <a href="{{ url_for('index') }}" class="topbar-link {% if request.endpoint == 'index' %}active{% endif %}">Sjablonen</a>
           {% if session.get('user_role') == 'admin' %}
             <a href="{{ url_for('admin') }}" class="topbar-link {% if request.endpoint and request.endpoint.startswith('admin') %}active{% endif %}">Beheer</a>
           {% endif %}
