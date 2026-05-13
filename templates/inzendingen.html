@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}Inzendingen — {{ cfg.tenant_name }}{% endblock %}
+
+{% block content %}
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Inzendingen</h1>
+      <p class="page-subtitle">Overzicht van dossier-invullingen die (deels) extern zijn ingevuld.</p>
+    </div>
+  </div>
+
+  {% if inzendingen %}
+    <div class="card" style="padding:0;overflow:hidden;">
+      <table>
+        <thead>
+          <tr>
+            <th>Dossier</th>
+            <th>Sjabloon</th>
+            <th>Zichtbaarheid</th>
+            <th>Ingevulde velden</th>
+            <th>Laatst bijgewerkt</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for inv in inzendingen %}
+            <tr>
+              <td>
+                <a href="{{ url_for('dossier_detail', dossier_id=inv.dossier_id) }}" style="font-weight:500;">
+                  {{ inv.dossier.naam or '—' }}
+                </a>
+                <div style="font-size:12px;color:var(--muted);margin-top:2px;">
+                  <span class="badge badge-dossier-{{ inv.dossier.status or 'concept' }}" style="font-size:11px;">
+                    {{ 'Afgerond' if inv.dossier.status == 'afgerond' else 'Concept' }}
+                  </span>
+                </div>
+              </td>
+              <td style="color:var(--text);">{{ inv.template_naam }}</td>
+              <td>
+                {% if inv.extern_toegang == 'invulbaar' %}
+                  <span class="badge badge-concept">Invulbaar</span>
+                {% else %}
+                  <span class="badge badge-sealed">Leesbaar</span>
+                {% endif %}
+              </td>
+              <td>
+                {% set extern_ingevuld = inv.extern_velden | selectattr('name', 'in', inv.waarden.keys() | list) | list %}
+                {% set gevuld = [] %}
+                {% for f in inv.extern_velden %}
+                  {% if inv.waarden.get(f.name, '') | string | trim %}
+                    {% set _ = gevuld.append(f) %}
+                  {% endif %}
+                {% endfor %}
+                {% if gevuld %}
+                  <span style="font-size:13px;">
+                    {{ gevuld | length }} / {{ inv.extern_velden | length }}
+                    <span style="color:var(--muted);">extern veld{{ 'en' if inv.extern_velden | length != 1 }}</span>
+                  </span>
+                {% else %}
+                  <span style="font-size:13px;color:var(--muted);">Intern ingevuld</span>
+                {% endif %}
+              </td>
+              <td style="font-size:13px;color:var(--muted);">
+                {{ (inv.updated_at or inv.created_at or '')[:10] }}
+              </td>
+              <td>
+                <a href="{{ url_for('dossier_detail', dossier_id=inv.dossier_id) }}#inv-{{ inv.id }}" class="btn btn-xs btn-secondary">
+                  Bekijken →
+                </a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="card">
+      <div class="empty-state">
+        <div class="empty-state-icon"><i data-lucide="inbox"></i></div>
+        <div class="empty-state-title">Geen inzendingen</div>
+        <div class="empty-state-body">
+          Er zijn nog geen extern zichtbare invullingen.<br>
+          Stel bij een dossier de zichtbaarheid in op "Leesbaar" of "Invulbaar" om externe partijen toegang te geven.
+        </div>
+      </div>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

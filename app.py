@@ -1590,6 +1590,75 @@ def dossier_extern_bedankt(token_id):
 
 
 # ---------------------------------------------------------------------------
+# Inzendingen (voor alle ingelogde gebruikers)
+# ---------------------------------------------------------------------------
+
+@app.route("/inzendingen")
+@login_required
+def inzendingen_overzicht():
+    cfg = get_config()
+
+    # Haal alle invullingen op waarbij de externe partij iets heeft ingevuld
+    # (extern_toegang != verborgen én waarden niet leeg)
+    try:
+        inv_res = supabase.table("invullingen").select("*").neq("extern_toegang", "verborgen").execute()
+        alle_invullingen = inv_res.data or []
+    except Exception as e:
+        flash(f"Fout bij ophalen inzendingen: {e}", "error")
+        alle_invullingen = []
+
+    # Filter op invullingen met minstens één extern ingevuld veld
+    inzendingen = []
+    dossier_cache = {}
+    template_cache = {}
+
+    for inv in alle_invullingen:
+        waarden = inv.get("waarden") or {}
+        if isinstance(waarden, str):
+            waarden = json.loads(waarden)
+
+        if not any(str(v).strip() for v in waarden.values()):
+            continue
+
+        dos_id = inv.get("dossier_id")
+        if dos_id not in dossier_cache:
+            try:
+                dos_res = supabase.table("dossiers").select("naam,status").eq("id", dos_id).single().execute()
+                dossier_cache[dos_id] = dos_res.data or {}
+            except Exception:
+                dossier_cache[dos_id] = {}
+
+        tmpl_id = inv.get("template_id")
+        if tmpl_id not in template_cache:
+            try:
+                tmpl_res = supabase.table("templates").select("name,fields").eq("id", tmpl_id).single().execute()
+                template_cache[tmpl_id] = tmpl_res.data or {}
+            except Exception:
+                template_cache[tmpl_id] = {}
+
+        tmpl = template_cache.get(tmpl_id, {})
+        fields = tmpl.get("fields") or []
+        if isinstance(fields, str):
+            fields = json.loads(fields)
+
+        # Alleen extern-ingevulde velden tonen
+        extern_velden = [f for f in fields if f.get("eigenaar") == "extern"]
+
+        inzendingen.append({
+            **inv,
+            "waarden": waarden,
+            "dossier": dossier_cache.get(dos_id, {}),
+            "template_naam": tmpl.get("name", "—"),
+            "extern_velden": extern_velden,
+        })
+
+    # Sorteer: meest recent bijgewerkt bovenaan
+    inzendingen.sort(key=lambda x: x.get("updated_at") or x.get("created_at") or "", reverse=True)
+
+    return render_template("inzendingen.html", cfg=cfg, inzendingen=inzendingen)
+
+
+# ---------------------------------------------------------------------------
 # Error handlers
 # ---------------------------------------------------------------------------
 
