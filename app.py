@@ -50,9 +50,44 @@ def set_config(key: str, value: str) -> None:
     supabase.table("config").upsert({"key": key, "value": value}).execute()
 
 
+def get_ongelezen_inzendingen_count(user_id: str) -> int:
+    """Aantal extern-zichtbare invullingen bijgewerkt na de laatste keer dat de gebruiker de inzendingen-pagina bezocht."""
+    try:
+        gezien_res = supabase.table("inzendingen_gelezen").select("gezien_op").eq("user_id", user_id).single().execute()
+        gezien_op = gezien_res.data["gezien_op"] if gezien_res.data else None
+    except Exception:
+        gezien_op = None
+
+    try:
+        q = supabase.table("invullingen").select("id,updated_at,waarden").neq("extern_toegang", "verborgen")
+        if gezien_op:
+            q = q.gt("updated_at", gezien_op)
+        inv_res = q.execute()
+        rows = inv_res.data or []
+    except Exception:
+        return 0
+
+    count = 0
+    for inv in rows:
+        waarden = inv.get("waarden") or {}
+        if isinstance(waarden, str):
+            waarden = json.loads(waarden)
+        if any(str(v).strip() for v in waarden.values()):
+            count += 1
+    return count
+
+
 # ---------------------------------------------------------------------------
 # Auth helpers
 # ---------------------------------------------------------------------------
+
+@app.context_processor
+def inject_badge_counts():
+    user_id = session.get("user_id")
+    if not user_id:
+        return {"ongelezen_inzendingen": 0}
+    return {"ongelezen_inzendingen": get_ongelezen_inzendingen_count(user_id)}
+
 
 def login_required(f):
     @wraps(f)
@@ -1654,6 +1689,17 @@ def inzendingen_overzicht():
 
     # Sorteer: meest recent bijgewerkt bovenaan
     inzendingen.sort(key=lambda x: x.get("updated_at") or x.get("created_at") or "", reverse=True)
+
+    # Markeer als gelezen voor deze gebruiker
+    user_id = session.get("user_id")
+    if user_id:
+        try:
+            supabase.table("inzendingen_gelezen").upsert({
+                "user_id": user_id,
+                "gezien_op": datetime.utcnow().isoformat(),
+            }, on_conflict="user_id").execute()
+        except Exception:
+            pass
 
     return render_template("inzendingen.html", cfg=cfg, inzendingen=inzendingen)
 
