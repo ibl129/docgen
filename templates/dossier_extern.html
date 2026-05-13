@@ -217,7 +217,21 @@
     </div>
 
     <footer style="text-align:center;padding:20px;font-size:12px;color:var(--muted);">
-      {{ cfg.tenant_name }}
+      {% if app_footer and app_footer.tekst %}
+        <div class="app-footer-inner" style="justify-content:center;">
+          {% if app_footer.afbeelding_url %}
+            <img src="{{ app_footer.afbeelding_url }}" alt="" class="app-footer-img">
+          {% endif %}
+          <span>{{ app_footer.tekst }}</span>
+          {% if app_footer.url %}
+            · <a href="{{ app_footer.url }}" target="_blank" rel="noopener" class="app-footer-link">
+                {{ app_footer.url_label or app_footer.url }}
+              </a>
+          {% endif %}
+        </div>
+      {% else %}
+        {{ cfg.tenant_name }}
+      {% endif %}
     </footer>
   </div>
   <script>lucide.createIcons();</script>

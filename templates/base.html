@@ -77,5 +77,21 @@
 
   {% block scripts %}{% endblock %}
   <script>lucide.createIcons();</script>
+
+  {% if app_footer and app_footer.tekst %}
+  <footer class="app-footer">
+    <div class="app-footer-inner">
+      {% if app_footer.afbeelding_url %}
+        <img src="{{ app_footer.afbeelding_url }}" alt="" class="app-footer-img">
+      {% endif %}
+      <span class="app-footer-tekst">{{ app_footer.tekst }}</span>
+      {% if app_footer.url %}
+        <a href="{{ app_footer.url }}" target="_blank" rel="noopener" class="app-footer-link">
+          {{ app_footer.url_label or app_footer.url }}
+        </a>
+      {% endif %}
+    </div>
+  </footer>
+  {% endif %}
 </body>
 </html>

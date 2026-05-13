@@ -2,6 +2,8 @@ import os
 import io
 import json
 import uuid
+import time
+import urllib.request
 from functools import wraps
 from datetime import datetime
 
@@ -50,6 +52,32 @@ def set_config(key: str, value: str) -> None:
     supabase.table("config").upsert({"key": key, "value": value}).execute()
 
 
+_footer_cache: dict = {"data": None, "ts": 0}
+_FOOTER_TTL = 300  # 5 minuten
+
+def get_app_footer() -> dict:
+    """Haal footer-config op van het intranet, gecached voor 5 minuten."""
+    now = time.time()
+    if _footer_cache["data"] is not None and now - _footer_cache["ts"] < _FOOTER_TTL:
+        return _footer_cache["data"]
+
+    url = os.environ.get(
+        "FOOTER_API_URL",
+        "https://intranet.leidersinzicht.nl/api/v1/app-footers/docgen"
+    )
+    try:
+        with urllib.request.urlopen(url, timeout=3) as resp:
+            data = json.loads(resp.read().decode())
+        if data.get("jaar_dynamisch"):
+            data["tekst"] = data.get("tekst", "").replace("{jaar}", str(datetime.utcnow().year))
+        _footer_cache["data"] = data
+        _footer_cache["ts"]   = now
+        return data
+    except Exception:
+        fallback = {"tekst": "", "url": "", "url_label": "", "afbeelding_url": ""}
+        return fallback
+
+
 def get_ongelezen_inzendingen_count(user_id: str) -> int:
     """Aantal extern-zichtbare invullingen bijgewerkt na de laatste keer dat de gebruiker de inzendingen-pagina bezocht."""
     try:
@@ -82,11 +110,12 @@ def get_ongelezen_inzendingen_count(user_id: str) -> int:
 # ---------------------------------------------------------------------------
 
 @app.context_processor
-def inject_badge_counts():
+def inject_globals():
     user_id = session.get("user_id")
-    if not user_id:
-        return {"ongelezen_inzendingen": 0}
-    return {"ongelezen_inzendingen": get_ongelezen_inzendingen_count(user_id)}
+    return {
+        "ongelezen_inzendingen": get_ongelezen_inzendingen_count(user_id) if user_id else 0,
+        "app_footer": get_app_footer(),
+    }
 
 
 def login_required(f):

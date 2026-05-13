@@ -1469,3 +1469,31 @@ tbody tr:hover { background: #fafbfc; }
     min-width: 0;
   }
 }
+
+.app-footer {
+  border-top: 1px solid var(--border);
+  padding: 14px 24px;
+  margin-top: 40px;
+}
+.app-footer-inner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 1100px;
+  margin: 0 auto;
+  font-size: 12px;
+  color: var(--muted);
+}
+.app-footer-img {
+  height: 18px;
+  width: auto;
+  object-fit: contain;
+  opacity: 0.7;
+}
+.app-footer-tekst { flex: 1; }
+.app-footer-link {
+  color: var(--muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.app-footer-link:hover { color: var(--text); }
