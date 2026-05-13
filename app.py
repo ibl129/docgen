@@ -976,7 +976,13 @@ def admin_config():
 
     try:
         users_res = supabase.auth.admin.list_users()
-        users = users_res if isinstance(users_res, list) else []
+        raw = users_res if isinstance(users_res, list) else []
+        users = [{
+            "id": str(u.id),
+            "email": u.email or "",
+            "created_at": str(u.created_at or ""),
+            "user_metadata": u.user_metadata or {},
+        } for u in raw]
     except Exception:
         users = []
 
