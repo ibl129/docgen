@@ -1371,3 +1371,57 @@ tbody tr:hover { background: #fafbfc; }
     grid-template-columns: 1fr;
   }
 }
+
+/* ── Dossier filter balk ── */
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  margin-bottom: 16px;
+}
+
+.filter-field {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: 1;
+  min-width: 160px;
+}
+
+.filter-field-sm {
+  flex: 0 0 auto;
+  min-width: 140px;
+}
+
+.filter-input {
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  color: var(--text);
+  outline: none;
+  width: 100%;
+  padding: 2px 0;
+}
+
+.filter-input::placeholder {
+  color: var(--muted);
+}
+
+.filter-input option {
+  background: var(--surface);
+}
+
+@media (max-width: 768px) {
+  .filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .filter-field, .filter-field-sm {
+    min-width: 0;
+  }
+}

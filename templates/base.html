@@ -15,7 +15,7 @@
   </style>
   {% block head %}{% endblock %}
 </head>
-<body>
+<body data-userid="{{ session.get('user_id', '') }}">
   {% block topbar %}
   <header class="topbar">
     <div class="topbar-inner">

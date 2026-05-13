@@ -15,9 +15,63 @@
   </div>
 
   {% if dossiers %}
-    <div class="dossier-grid">
+    <!-- Filter balk -->
+    <div class="filter-bar" id="filter-bar">
+      <div class="filter-field">
+        <i data-lucide="search" style="width:15px;height:15px;color:var(--muted);flex-shrink:0;"></i>
+        <input
+          type="text"
+          id="filter-naam"
+          class="filter-input"
+          placeholder="Zoek op naam…"
+          autocomplete="off"
+        >
+      </div>
+      <div class="filter-field filter-field-sm">
+        <i data-lucide="calendar" style="width:15px;height:15px;color:var(--muted);flex-shrink:0;"></i>
+        <select id="filter-jaar" class="filter-input">
+          <option value="">Alle jaren</option>
+          {% set jaren = dossiers | map(attribute='jaar') | select | unique | sort | list %}
+          {% for jaar in jaren %}
+            <option value="{{ jaar }}">{{ jaar }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="filter-field filter-field-sm">
+        <i data-lucide="layers" style="width:15px;height:15px;color:var(--muted);flex-shrink:0;"></i>
+        <select id="filter-financiering" class="filter-input">
+          <option value="">Alle financieringsvormen</option>
+          {% set vormen = dossiers | map(attribute='financieringsvorm') | select | unique | sort | list %}
+          {% for vorm in vormen %}
+            <option value="{{ vorm }}">{{ vorm }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="filter-field filter-field-sm">
+        <i data-lucide="tag" style="width:15px;height:15px;color:var(--muted);flex-shrink:0;"></i>
+        <select id="filter-status" class="filter-input">
+          <option value="">Alle statussen</option>
+          <option value="concept">Concept</option>
+          <option value="afgerond">Afgerond</option>
+        </select>
+      </div>
+      <button class="btn btn-xs btn-secondary" id="filter-reset" style="white-space:nowrap;">
+        <i data-lucide="x" style="width:13px;height:13px;vertical-align:-1px;margin-right:3px;"></i>Wis filters
+      </button>
+    </div>
+
+    <div id="filter-count" style="font-size:13px;color:var(--muted);margin-bottom:12px;display:none;"></div>
+
+    <div class="dossier-grid" id="dossier-grid">
       {% for dos in dossiers %}
-        <a href="{{ url_for('dossier_detail', dossier_id=dos.id) }}" class="dossier-card">
+        <a
+          href="{{ url_for('dossier_detail', dossier_id=dos.id) }}"
+          class="dossier-card"
+          data-naam="{{ dos.naam | lower }}"
+          data-jaar="{{ dos.jaar or '' }}"
+          data-financiering="{{ dos.financieringsvorm or '' }}"
+          data-status="{{ dos.status }}"
+        >
           <div class="dossier-card-header">
             <div class="dossier-card-icon"><i data-lucide="folder"></i></div>
             <span class="badge badge-dossier-{{ dos.status }}">
@@ -32,12 +86,22 @@
             <span>{{ dos.invulling_count }} invulling{% if dos.invulling_count != 1 %}en{% endif %}</span>
             <span>·</span>
             {% if dos.jaar %}<span>{{ dos.jaar }}</span><span>·</span>{% endif %}
-            {% if dos.financieringsvorm %}<span>{{ dos.financieringsvorm }}</span><span>·</span>{% endif %}
-            <span>{{ dos.created_at[:10] if dos.created_at else '—' }}</span>
+            {% if dos.financieringsvorm %}<span>{{ dos.financieringsvorm }}</span>{% endif %}
           </div>
         </a>
       {% endfor %}
     </div>
+
+    <div id="dossier-leeg" style="display:none;">
+      <div class="card">
+        <div class="empty-state" style="padding:32px;">
+          <div class="empty-state-icon"><i data-lucide="search-x"></i></div>
+          <div class="empty-state-title">Geen resultaten</div>
+          <div class="empty-state-body">Geen dossiers gevonden met deze filters. <a href="#" id="leeg-reset">Wis filters</a></div>
+        </div>
+      </div>
+    </div>
+
   {% else %}
     <div class="card">
       <div class="empty-state">
@@ -51,4 +115,79 @@
     </div>
   {% endif %}
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const STORAGE_KEY = 'docgen_dossier_filters_' + (document.body.dataset.userid || 'anon');
+
+const cards    = Array.from(document.querySelectorAll('.dossier-card'));
+const inNaam   = document.getElementById('filter-naam');
+const inJaar   = document.getElementById('filter-jaar');
+const inFin    = document.getElementById('filter-financiering');
+const inStatus = document.getElementById('filter-status');
+const countEl  = document.getElementById('filter-count');
+const leegEl   = document.getElementById('dossier-leeg');
+const resetBtn = document.getElementById('filter-reset');
+const leegReset = document.getElementById('leeg-reset');
+
+if (!inNaam) return; // geen dossiers aanwezig
+
+function applyFilters() {
+  const naam   = inNaam.value.toLowerCase().trim();
+  const jaar   = inJaar.value;
+  const fin    = inFin.value;
+  const status = inStatus.value;
+
+  let zichtbaar = 0;
+  cards.forEach(card => {
+    const match =
+      (!naam   || card.dataset.naam.includes(naam)) &&
+      (!jaar   || card.dataset.jaar === jaar) &&
+      (!fin    || card.dataset.financiering === fin) &&
+      (!status || card.dataset.status === status);
+    card.style.display = match ? '' : 'none';
+    if (match) zichtbaar++;
+  });
+
+  const actief = naam || jaar || fin || status;
+  countEl.style.display = actief ? '' : 'none';
+  if (actief) countEl.textContent = `${zichtbaar} van ${cards.length} dossier${cards.length !== 1 ? 's' : ''} zichtbaar`;
+  leegEl.style.display = (zichtbaar === 0) ? '' : 'none';
+
+  // Opslaan per gebruiker
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ naam, jaar, fin, status }));
+  } catch(e) {}
+}
+
+function resetFilters() {
+  inNaam.value = '';
+  inJaar.value = '';
+  inFin.value = '';
+  inStatus.value = '';
+  applyFilters();
+}
+
+function loadSavedFilters() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null');
+    if (!saved) return;
+    if (saved.naam)   inNaam.value   = saved.naam;
+    if (saved.jaar)   inJaar.value   = saved.jaar;
+    if (saved.fin)    inFin.value    = saved.fin;
+    if (saved.status) inStatus.value = saved.status;
+  } catch(e) {}
+}
+
+inNaam.addEventListener('input', applyFilters);
+inJaar.addEventListener('change', applyFilters);
+inFin.addEventListener('change', applyFilters);
+inStatus.addEventListener('change', applyFilters);
+resetBtn.addEventListener('click', resetFilters);
+if (leegReset) leegReset.addEventListener('click', e => { e.preventDefault(); resetFilters(); });
+
+loadSavedFilters();
+applyFilters();
+</script>
 {% endblock %}
