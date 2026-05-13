@@ -974,6 +974,39 @@ def admin_config():
                 flash(f"Fout: {e}", "error")
             return redirect(url_for("admin_config"))
 
+        if action == "add_financieringsvorm":
+            naam = request.form.get("fin_naam", "").strip()
+            if naam:
+                try:
+                    supabase.table("financieringsvormen").insert({"naam": naam}).execute()
+                    flash("Financieringsvorm toegevoegd.", "success")
+                except Exception as e:
+                    flash(f"Fout: {e}", "error")
+            else:
+                flash("Naam is verplicht.", "error")
+            return redirect(url_for("admin_config"))
+
+        if action == "rename_financieringsvorm":
+            fin_id = request.form.get("fin_id")
+            naam = request.form.get("fin_naam", "").strip()
+            if fin_id and naam:
+                try:
+                    supabase.table("financieringsvormen").update({"naam": naam}).eq("id", fin_id).execute()
+                    flash("Financieringsvorm bijgewerkt.", "success")
+                except Exception as e:
+                    flash(f"Fout: {e}", "error")
+            return redirect(url_for("admin_config"))
+
+        if action == "delete_financieringsvorm":
+            fin_id = request.form.get("fin_id")
+            if fin_id:
+                try:
+                    supabase.table("financieringsvormen").delete().eq("id", fin_id).execute()
+                    flash("Financieringsvorm verwijderd.", "success")
+                except Exception as e:
+                    flash(f"Fout: {e}", "error")
+            return redirect(url_for("admin_config"))
+
     try:
         users_res = supabase.auth.admin.list_users()
         raw = users_res if isinstance(users_res, list) else []
@@ -986,7 +1019,13 @@ def admin_config():
     except Exception:
         users = []
 
-    return render_template("admin_config.html", cfg=cfg, users=users)
+    try:
+        fin_res = supabase.table("financieringsvormen").select("*").order("naam").execute()
+        financieringsvormen = fin_res.data or []
+    except Exception:
+        financieringsvormen = []
+
+    return render_template("admin_config.html", cfg=cfg, users=users, financieringsvormen=financieringsvormen)
 
 
 @app.route("/admin/submissions")
@@ -1070,6 +1109,14 @@ def dossiers_overzicht():
     return render_template("dossiers.html", cfg=cfg, dossiers=dossier_list)
 
 
+def _get_financieringsvormen() -> list:
+    try:
+        res = supabase.table("financieringsvormen").select("naam").order("naam").execute()
+        return [r["naam"] for r in (res.data or [])]
+    except Exception:
+        return ["Zvw", "Wlz", "Wmo", "Jeugdwet", "Overig"]
+
+
 @app.route("/dossier/nieuw", methods=["GET", "POST"])
 @login_required
 def dossier_nieuw():
@@ -1079,6 +1126,7 @@ def dossier_nieuw():
         templates = tmpl_res.data or []
     except Exception:
         templates = []
+    fin_vormen = _get_financieringsvormen()
 
     if request.method == "POST":
         naam = request.form.get("naam", "").strip()
@@ -1095,11 +1143,11 @@ def dossier_nieuw():
 
         if not naam:
             flash("Naam is verplicht.", "error")
-            return render_template("dossier_nieuw.html", cfg=cfg, templates=templates, now=datetime.now())
+            return render_template("dossier_nieuw.html", cfg=cfg, templates=templates, now=datetime.now(), fin_vormen=fin_vormen)
 
         if not template_ids:
             flash("Selecteer minimaal één sjabloon.", "error")
-            return render_template("dossier_nieuw.html", cfg=cfg, templates=templates, now=datetime.now())
+            return render_template("dossier_nieuw.html", cfg=cfg, templates=templates, now=datetime.now(), fin_vormen=fin_vormen)
 
         try:
             dos_res = supabase.table("dossiers").insert({
@@ -1111,7 +1159,7 @@ def dossier_nieuw():
             dossier_id = dos_res.data[0]["id"]
         except Exception as e:
             flash(f"Fout bij aanmaken dossier: {e}", "error")
-            return render_template("dossier_nieuw.html", cfg=cfg, templates=templates, now=datetime.now())
+            return render_template("dossier_nieuw.html", cfg=cfg, templates=templates, now=datetime.now(), fin_vormen=fin_vormen)
 
         for tid in template_ids:
             try:
@@ -1127,7 +1175,7 @@ def dossier_nieuw():
         flash("Dossier aangemaakt.", "success")
         return redirect(url_for("dossier_detail", dossier_id=dossier_id))
 
-    return render_template("dossier_nieuw.html", cfg=cfg, templates=templates, now=datetime.now())
+    return render_template("dossier_nieuw.html", cfg=cfg, templates=templates, now=datetime.now(), fin_vormen=fin_vormen)
 
 
 @app.route("/dossier/<dossier_id>")
@@ -1178,12 +1226,15 @@ def dossier_detail(dossier_id):
     except Exception:
         tokens = []
 
+    fin_vormen = _get_financieringsvormen()
+
     return render_template(
         "dossier_detail.html",
         cfg=cfg,
         dossier=dossier,
         invullingen=invullingen,
         tokens=tokens,
+        fin_vormen=fin_vormen,
     )
 
 

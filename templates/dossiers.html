@@ -120,6 +120,7 @@
 
 {% block scripts %}
 <script>
+(function() {
 const STORAGE_KEY = 'docgen_dossier_filters_' + (document.body.dataset.userid || 'anon');
 
 const cards    = Array.from(document.querySelectorAll('.dossier-card'));
@@ -132,7 +133,7 @@ const leegEl   = document.getElementById('dossier-leeg');
 const resetBtn = document.getElementById('filter-reset');
 const leegReset = document.getElementById('leeg-reset');
 
-if (!inNaam) return; // geen dossiers aanwezig
+if (!inNaam) return;
 
 function applyFilters() {
   const naam   = inNaam.value.toLowerCase().trim();
@@ -190,5 +191,6 @@ if (leegReset) leegReset.addEventListener('click', e => { e.preventDefault(); re
 
 loadSavedFilters();
 applyFilters();
+})();
 </script>
 {% endblock %}

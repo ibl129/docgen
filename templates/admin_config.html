@@ -85,6 +85,71 @@
     </form>
   </div>
 
+  <!-- Financieringsvormen -->
+  <div class="card" style="margin-top:20px;">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Financieringsvormen</div>
+        <div class="card-subtitle">Keuzemogelijkheden voor het veld "Financieringsvorm" bij dossiers.</div>
+      </div>
+    </div>
+
+    <form method="post" action="{{ url_for('admin_config') }}" style="margin-bottom:16px;">
+      <input type="hidden" name="action" value="add_financieringsvorm">
+      <div style="display:flex;gap:10px;align-items:flex-end;">
+        <div class="form-group" style="margin-bottom:0;flex:1;">
+          <label class="form-label">Nieuwe financieringsvorm</label>
+          <input type="text" name="fin_naam" class="form-control" placeholder="bv. Wmo 2025" autocomplete="off" required>
+        </div>
+        <button type="submit" class="btn btn-outline">+ Toevoegen</button>
+      </div>
+    </form>
+
+    {% if financieringsvormen %}
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Naam</th>
+              <th>Bewerken</th>
+              <th>Verwijderen</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for fin in financieringsvormen %}
+              <tr>
+                <td>
+                  <form method="post" action="{{ url_for('admin_config') }}" style="margin:0;display:flex;gap:8px;align-items:center;">
+                    <input type="hidden" name="action" value="rename_financieringsvorm">
+                    <input type="hidden" name="fin_id" value="{{ fin.id }}">
+                    <input type="text" name="fin_naam" class="form-control" value="{{ fin.naam }}" style="font-size:13px;max-width:220px;">
+                    <button type="submit" class="btn btn-xs btn-outline">Opslaan</button>
+                  </form>
+                </td>
+                <td></td>
+                <td>
+                  <form method="post" action="{{ url_for('admin_config') }}" style="margin:0;">
+                    <input type="hidden" name="action" value="delete_financieringsvorm">
+                    <input type="hidden" name="fin_id" value="{{ fin.id }}">
+                    <button
+                      type="submit"
+                      class="btn btn-xs btn-danger-outline"
+                      onclick="return confirm('Financieringsvorm \'{{ fin.naam }}\' verwijderen?')"
+                    >Verwijderen</button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state" style="padding:20px;">
+        <div class="empty-state-body">Nog geen financieringsvormen. Voeg er een toe hierboven.</div>
+      </div>
+    {% endif %}
+  </div>
+
   <!-- User management -->
   <div class="card" style="margin-top:20px;">
     <div class="card-header">

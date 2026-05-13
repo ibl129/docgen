@@ -250,7 +250,7 @@
           <div class="form-group" style="margin-bottom:12px;">
             <label class="form-label" style="font-size:12px;">Financieringsvorm(en)</label>
             {% set huidige = (dossier.financieringsvorm or '').split(',') | map('trim') | list %}
-            {% for vorm in ['Zvw', 'Wlz', 'Wmo', 'Jeugdwet', 'Overig'] %}
+            {% for vorm in fin_vormen %}
               <label class="form-check" style="display:flex;align-items:center;gap:7px;font-size:13px;margin-bottom:4px;cursor:pointer;">
                 <input type="checkbox" name="financieringsvorm" value="{{ vorm }}" {% if vorm in huidige %}checked{% endif %}>
                 {{ vorm }}

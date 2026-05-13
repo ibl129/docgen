@@ -62,7 +62,7 @@
         </div>
         <div class="form-group">
           <label class="form-label">Financieringsvorm(en)</label>
-          {% for vorm in ['Zvw', 'Wlz', 'Wmo', 'Jeugdwet', 'Overig'] %}
+          {% for vorm in fin_vormen %}
             <label class="form-check" style="display:flex;align-items:center;gap:7px;font-size:13px;margin-bottom:4px;cursor:pointer;">
               <input type="checkbox" name="financieringsvorm" value="{{ vorm }}">
               {{ vorm }}
