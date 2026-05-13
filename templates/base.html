@@ -81,18 +81,19 @@
   {% if app_footer and app_footer.tekst %}
   <footer class="app-footer">
     <div class="app-footer-inner">
-      {% if app_footer.afbeelding_url %}
-        <img src="{{ app_footer.afbeelding_url }}" alt="" class="app-footer-img">
-      {% endif %}
-      <span>{{ app_footer.tekst }}</span>
-      {% if app_footer.url %}
-        <span class="app-footer-sep">·</span>
-        <a href="{{ app_footer.url }}" target="_blank" rel="noopener" class="app-footer-link">
-          {{ app_footer.url_label or app_footer.url }}
-        </a>
-      {% endif %}
+      <div class="app-footer-brand">
+        {% if app_footer.afbeelding_url %}
+          <img src="{{ app_footer.afbeelding_url }}" alt="" class="app-footer-img">
+        {% endif %}
+        <span>{{ app_footer.tekst }}</span>
+        {% if app_footer.url %}
+          <span class="app-footer-sep">·</span>
+          <a href="{{ app_footer.url }}" target="_blank" rel="noopener" class="app-footer-link">
+            {{ app_footer.url_label or app_footer.url }}
+          </a>
+        {% endif %}
+      </div>
       {% if app_footer.berichten %}
-        <span class="app-footer-sep">·</span>
         <span class="app-footer-ticker" id="app-footer-ticker">
           {% for bericht in app_footer.berichten %}
             <span class="app-footer-bericht{% if loop.first %} actief{% endif %}">{{ bericht }}</span>

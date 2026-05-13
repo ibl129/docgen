@@ -1484,11 +1484,18 @@ tbody tr:hover { background: #fafbfc; }
 .app-footer-inner {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
   max-width: 1100px;
   margin: 0 auto;
   font-size: 12px;
   color: var(--muted);
+}
+.app-footer-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 .app-footer-img {
   height: 18px;
@@ -1500,19 +1507,21 @@ tbody tr:hover { background: #fafbfc; }
 .app-footer-ticker {
   position: relative;
   display: inline-block;
+  height: 1.4em;
+  min-width: 120px;
 }
 .app-footer-bericht {
   opacity: 0;
   transition: opacity 0.6s ease;
   pointer-events: none;
   position: absolute;
+  top: 0;
   left: 0;
   white-space: nowrap;
 }
 .app-footer-bericht.actief {
   opacity: 1;
   pointer-events: auto;
-  position: relative;
 }
 .app-footer-link {
   color: var(--muted);

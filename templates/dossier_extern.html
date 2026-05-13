@@ -216,23 +216,48 @@
       </div>
     </div>
 
-    <footer style="text-align:center;padding:20px;font-size:12px;color:var(--muted);">
-      {% if app_footer and app_footer.tekst %}
-        <div class="app-footer-inner" style="justify-content:center;">
+    {% if app_footer and app_footer.tekst %}
+    <footer class="app-footer" style="margin-top:auto;">
+      <div class="app-footer-inner">
+        <div class="app-footer-brand">
           {% if app_footer.afbeelding_url %}
             <img src="{{ app_footer.afbeelding_url }}" alt="" class="app-footer-img">
           {% endif %}
           <span>{{ app_footer.tekst }}</span>
           {% if app_footer.url %}
-            · <a href="{{ app_footer.url }}" target="_blank" rel="noopener" class="app-footer-link">
-                {{ app_footer.url_label or app_footer.url }}
-              </a>
+            <span class="app-footer-sep">·</span>
+            <a href="{{ app_footer.url }}" target="_blank" rel="noopener" class="app-footer-link">
+              {{ app_footer.url_label or app_footer.url }}
+            </a>
           {% endif %}
         </div>
-      {% else %}
-        {{ cfg.tenant_name }}
-      {% endif %}
+        {% if app_footer.berichten %}
+          <span class="app-footer-ticker" id="app-footer-ticker">
+            {% for bericht in app_footer.berichten %}
+              <span class="app-footer-bericht{% if loop.first %} actief{% endif %}">{{ bericht }}</span>
+            {% endfor %}
+          </span>
+          <script>
+          (function() {
+            var berichten = document.querySelectorAll('#app-footer-ticker .app-footer-bericht');
+            if (berichten.length <= 1) return;
+            var huidig = 0;
+            var interval = {{ app_footer.bericht_interval * 1000 }};
+            setInterval(function() {
+              berichten[huidig].classList.remove('actief');
+              huidig = (huidig + 1) % berichten.length;
+              berichten[huidig].classList.add('actief');
+            }, interval);
+          })();
+          </script>
+        {% endif %}
+      </div>
     </footer>
+    {% else %}
+    <footer style="text-align:center;padding:20px;font-size:12px;color:var(--muted);">
+      {{ cfg.tenant_name }}
+    </footer>
+    {% endif %}
   </div>
   <script>lucide.createIcons();</script>
 </body>
