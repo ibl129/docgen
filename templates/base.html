@@ -84,8 +84,9 @@
       {% if app_footer.afbeelding_url %}
         <img src="{{ app_footer.afbeelding_url }}" alt="" class="app-footer-img">
       {% endif %}
-      <span class="app-footer-tekst">{{ app_footer.tekst }}</span>
+      <span>{{ app_footer.tekst }}</span>
       {% if app_footer.url %}
+        <span class="app-footer-sep">·</span>
         <a href="{{ app_footer.url }}" target="_blank" rel="noopener" class="app-footer-link">
           {{ app_footer.url_label or app_footer.url }}
         </a>
