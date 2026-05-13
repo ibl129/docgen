@@ -1085,7 +1085,8 @@ def dossier_nieuw():
         omschrijving = request.form.get("omschrijving", "").strip()
         template_ids = request.form.getlist("template_ids")
         jaar_raw = request.form.get("jaar", "").strip()
-        financieringsvorm = request.form.get("financieringsvorm", "").strip() or None
+        vormen = request.form.getlist("financieringsvorm")
+        financieringsvorm = ", ".join(v.strip() for v in vormen if v.strip()) or None
 
         try:
             jaar = int(jaar_raw) if jaar_raw else None
@@ -1340,6 +1341,39 @@ def dossier_status(dossier_id):
         flash("Dossier status bijgewerkt.", "success")
     except Exception as e:
         flash(f"Fout bij bijwerken status: {e}", "error")
+
+    return redirect(url_for("dossier_detail", dossier_id=dossier_id))
+
+
+@app.route("/dossier/<dossier_id>/bewerken", methods=["POST"])
+@login_required
+def dossier_bewerken(dossier_id):
+    naam = request.form.get("naam", "").strip()
+    omschrijving = request.form.get("omschrijving", "").strip()
+    jaar_raw = request.form.get("jaar", "").strip()
+    vormen = request.form.getlist("financieringsvorm")
+    financieringsvorm = ", ".join(v.strip() for v in vormen if v.strip()) or None
+
+    try:
+        jaar = int(jaar_raw) if jaar_raw else None
+    except ValueError:
+        jaar = None
+
+    if not naam:
+        flash("Naam is verplicht.", "error")
+        return redirect(url_for("dossier_detail", dossier_id=dossier_id))
+
+    try:
+        supabase.table("dossiers").update({
+            "naam": naam,
+            "omschrijving": omschrijving or None,
+            "jaar": jaar,
+            "financieringsvorm": financieringsvorm,
+            "updated_at": datetime.utcnow().isoformat(),
+        }).eq("id", dossier_id).execute()
+        flash("Dossier bijgewerkt.", "success")
+    except Exception as e:
+        flash(f"Fout bij opslaan: {e}", "error")
 
     return redirect(url_for("dossier_detail", dossier_id=dossier_id))
 

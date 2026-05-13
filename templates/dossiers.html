@@ -71,6 +71,7 @@
           data-jaar="{{ dos.jaar or '' }}"
           data-financiering="{{ dos.financieringsvorm or '' }}"
           data-status="{{ dos.status }}"
+          style="display:flex;"
         >
           <div class="dossier-card-header">
             <div class="dossier-card-icon"><i data-lucide="folder"></i></div>
@@ -144,9 +145,9 @@ function applyFilters() {
     const match =
       (!naam   || card.dataset.naam.includes(naam)) &&
       (!jaar   || card.dataset.jaar === jaar) &&
-      (!fin    || card.dataset.financiering === fin) &&
+      (!fin    || card.dataset.financiering.split(',').map(s=>s.trim()).includes(fin)) &&
       (!status || card.dataset.status === status);
-    card.style.display = match ? '' : 'none';
+    card.style.display = match ? 'flex' : 'none';
     if (match) zichtbaar++;
   });
 

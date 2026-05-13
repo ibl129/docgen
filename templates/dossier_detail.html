@@ -231,6 +231,36 @@
         {% endif %}
       </div>
 
+      <!-- Dossier bewerken -->
+      <div class="share-panel" style="margin-top:16px;">
+        <div class="share-panel-title">Dossiergegevens</div>
+        <form method="post" action="{{ url_for('dossier_bewerken', dossier_id=dossier.id) }}">
+          <div class="form-group" style="margin-bottom:10px;">
+            <label class="form-label" style="font-size:12px;">Naam</label>
+            <input type="text" name="naam" class="form-control" value="{{ dossier.naam }}" required style="font-size:13px;">
+          </div>
+          <div class="form-group" style="margin-bottom:10px;">
+            <label class="form-label" style="font-size:12px;">Omschrijving</label>
+            <textarea name="omschrijving" class="form-control" rows="2" style="font-size:13px;">{{ dossier.omschrijving or '' }}</textarea>
+          </div>
+          <div class="form-group" style="margin-bottom:10px;">
+            <label class="form-label" style="font-size:12px;">Jaar</label>
+            <input type="number" name="jaar" class="form-control" value="{{ dossier.jaar or '' }}" min="2000" max="2099" placeholder="2026" style="font-size:13px;">
+          </div>
+          <div class="form-group" style="margin-bottom:12px;">
+            <label class="form-label" style="font-size:12px;">Financieringsvorm(en)</label>
+            {% set huidige = (dossier.financieringsvorm or '').split(',') | map('trim') | list %}
+            {% for vorm in ['Zvw', 'Wlz', 'Wmo', 'Jeugdwet', 'Overig'] %}
+              <label class="form-check" style="display:flex;align-items:center;gap:7px;font-size:13px;margin-bottom:4px;cursor:pointer;">
+                <input type="checkbox" name="financieringsvorm" value="{{ vorm }}" {% if vorm in huidige %}checked{% endif %}>
+                {{ vorm }}
+              </label>
+            {% endfor %}
+          </div>
+          <button type="submit" class="btn btn-sm btn-outline btn-full">Opslaan</button>
+        </form>
+      </div>
+
       <!-- Dossier status -->
       <div class="share-panel" style="margin-top:16px;">
         <div class="share-panel-title">Dossier status</div>

@@ -61,15 +61,13 @@
           >
         </div>
         <div class="form-group">
-          <label class="form-label" for="financieringsvorm">Financieringsvorm</label>
-          <select id="financieringsvorm" name="financieringsvorm" class="form-control">
-            <option value="">— Kies een vorm —</option>
-            <option value="Zvw">Zvw</option>
-            <option value="Wlz">Wlz</option>
-            <option value="Wmo">Wmo</option>
-            <option value="Jeugdwet">Jeugdwet</option>
-            <option value="Overig">Overig</option>
-          </select>
+          <label class="form-label">Financieringsvorm(en)</label>
+          {% for vorm in ['Zvw', 'Wlz', 'Wmo', 'Jeugdwet', 'Overig'] %}
+            <label class="form-check" style="display:flex;align-items:center;gap:7px;font-size:13px;margin-bottom:4px;cursor:pointer;">
+              <input type="checkbox" name="financieringsvorm" value="{{ vorm }}">
+              {{ vorm }}
+            </label>
+          {% endfor %}
         </div>
       </div>
 
