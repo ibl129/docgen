@@ -444,7 +444,7 @@ function renderMappen(filters) {
   const volgorde = currentView === 'jaar-fin-dos' ? ['jaar', 'fin'] : ['fin', 'jaar'];
   const boom = groepeerDossiers(gefilterd, volgorde);
   mappenTree.innerHTML = bouwMappenHTML(boom, volgorde);
-  lucide.createIcons({ nodes: [mappenTree] });
+  if (window.lucide) lucide.createIcons({ nodes: [mappenTree] });
   bindMapToggle();
   return gefilterd.length;
 }
