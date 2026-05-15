@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS financieringsvormen (
 );
 
 GRANT ALL ON financieringsvormen TO authenticated, service_role;
+ALTER TABLE financieringsvormen DISABLE ROW LEVEL SECURITY;
 
 -- Vul standaard vormen in als de tabel leeg is
 INSERT INTO financieringsvormen (naam)

@@ -496,14 +496,7 @@ def logout():
 @app.route("/")
 @login_required
 def index():
-    cfg = get_config()
-    try:
-        templates = supabase.table("templates").select("id,name,description,created_at").order("created_at", desc=True).execute()
-        tmpl_list = templates.data or []
-    except Exception as e:
-        flash(f"Fout bij ophalen sjablonen: {e}", "error")
-        tmpl_list = []
-    return render_template("index.html", cfg=cfg, templates=tmpl_list)
+    return redirect(url_for("dossiers_overzicht"))
 
 
 @app.route("/template/<template_id>")
@@ -1170,7 +1163,17 @@ def dossiers_overzicht():
         except Exception:
             dos["invulling_count"] = 0
 
-    return render_template("dossiers.html", cfg=cfg, dossiers=dossier_list)
+    # Haal weergavevoorkeur op
+    user_id = session.get("user_id")
+    view_mode = "kaarten"
+    try:
+        pref_res = supabase.table("user_preferences").select("preferences").eq("user_id", user_id).execute()
+        if pref_res.data:
+            view_mode = pref_res.data[0]["preferences"].get("dossiers_view", "kaarten")
+    except Exception:
+        pass
+
+    return render_template("dossiers.html", cfg=cfg, dossiers=dossier_list, view_mode=view_mode)
 
 
 def _get_financieringsvormen() -> list:
@@ -1198,7 +1201,7 @@ def dossier_nieuw():
         template_ids = request.form.getlist("template_ids")
         jaar_raw = request.form.get("jaar", "").strip()
         vormen = request.form.getlist("financieringsvorm")
-        financieringsvorm = ", ".join(v.strip() for v in vormen if v.strip()) or None
+        financieringsvorm = ", ".join(sorted(v.strip() for v in vormen if v.strip())) or None
 
         try:
             jaar = int(jaar_raw) if jaar_raw else None
@@ -1467,7 +1470,7 @@ def dossier_bewerken(dossier_id):
     omschrijving = request.form.get("omschrijving", "").strip()
     jaar_raw = request.form.get("jaar", "").strip()
     vormen = request.form.getlist("financieringsvorm")
-    financieringsvorm = ", ".join(v.strip() for v in vormen if v.strip()) or None
+    financieringsvorm = ", ".join(sorted(v.strip() for v in vormen if v.strip())) or None
 
     try:
         jaar = int(jaar_raw) if jaar_raw else None
@@ -1505,6 +1508,40 @@ def dossier_invulling_heropenen(dossier_id, inv_id):
     except Exception as e:
         flash(f"Fout bij heropenen: {e}", "error")
     return redirect(url_for("dossier_detail", dossier_id=dossier_id))
+
+
+# ---------------------------------------------------------------------------
+# User preferences API
+# ---------------------------------------------------------------------------
+
+@app.route("/api/preferences", methods=["GET"])
+@login_required
+def get_preferences():
+    user_id = session.get("user_id")
+    try:
+        res = supabase.table("user_preferences").select("preferences").eq("user_id", user_id).execute()
+        prefs = res.data[0]["preferences"] if res.data else {}
+    except Exception:
+        prefs = {}
+    return {"preferences": prefs}
+
+
+@app.route("/api/preferences", methods=["POST"])
+@login_required
+def set_preferences():
+    user_id = session.get("user_id")
+    data = request.get_json(silent=True) or {}
+    prefs = data.get("preferences", {})
+    if not isinstance(prefs, dict):
+        return {"error": "Ongeldig formaat"}, 400
+    try:
+        supabase.table("user_preferences").upsert({
+            "user_id": user_id,
+            "preferences": prefs,
+        }).execute()
+    except Exception as e:
+        return {"error": str(e)}, 500
+    return {"ok": True}
 
 
 @app.route("/dossier/<dossier_id>/token/aanmaken", methods=["POST"])

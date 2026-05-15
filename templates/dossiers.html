@@ -15,54 +15,63 @@
   </div>
 
   {% if dossiers %}
-    <!-- Filter balk -->
-    <div class="filter-bar" id="filter-bar">
-      <div class="filter-field">
-        <i data-lucide="search" style="width:15px;height:15px;color:var(--muted);flex-shrink:0;"></i>
-        <input
-          type="text"
-          id="filter-naam"
-          class="filter-input"
-          placeholder="Zoek op naam…"
-          autocomplete="off"
-        >
+    <!-- Toolbar: weergave + filters -->
+    <div class="dossier-toolbar">
+      <div class="view-switcher">
+        <button class="view-btn {% if view_mode == 'kaarten' %}active{% endif %}" data-view="kaarten" title="Kaarten">
+          <i data-lucide="layout-grid" style="width:15px;height:15px;"></i> Kaarten
+        </button>
+        <button class="view-btn {% if view_mode == 'jaar-fin-dos' %}active{% endif %}" data-view="jaar-fin-dos" title="Jaar › Financiering › Dossier">
+          <i data-lucide="folders" style="width:15px;height:15px;"></i> Jaar › Fin › Dossier
+        </button>
+        <button class="view-btn {% if view_mode == 'fin-jaar-dos' %}active{% endif %}" data-view="fin-jaar-dos" title="Financiering › Jaar › Dossier">
+          <i data-lucide="folders" style="width:15px;height:15px;"></i> Fin › Jaar › Dossier
+        </button>
       </div>
-      <div class="filter-field filter-field-sm">
-        <i data-lucide="calendar" style="width:15px;height:15px;color:var(--muted);flex-shrink:0;"></i>
-        <select id="filter-jaar" class="filter-input">
-          <option value="">Alle jaren</option>
-          {% set jaren = dossiers | map(attribute='jaar') | select | unique | sort | list %}
-          {% for jaar in jaren %}
-            <option value="{{ jaar }}">{{ jaar }}</option>
-          {% endfor %}
-        </select>
+
+      <div class="filter-bar" id="filter-bar">
+        <div class="filter-field">
+          <i data-lucide="search" style="width:15px;height:15px;color:var(--muted);flex-shrink:0;"></i>
+          <input type="text" id="filter-naam" class="filter-input" placeholder="Zoek op naam…" autocomplete="off">
+        </div>
+        <div class="filter-field filter-field-sm">
+          <i data-lucide="calendar" style="width:15px;height:15px;color:var(--muted);flex-shrink:0;"></i>
+          <select id="filter-jaar" class="filter-input">
+            <option value="">Alle jaren</option>
+            {% set jaren = dossiers | map(attribute='jaar') | select | unique | sort | list %}
+            {% for jaar in jaren %}
+              <option value="{{ jaar }}">{{ jaar }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-field filter-field-sm">
+          <i data-lucide="layers" style="width:15px;height:15px;color:var(--muted);flex-shrink:0;"></i>
+          <select id="filter-financiering" class="filter-input">
+            <option value="">Alle financieringsvormen</option>
+            {% set vormen = dossiers | map(attribute='financieringsvorm') | select | unique | sort | list %}
+            {% for vorm in vormen %}
+              <option value="{{ vorm }}">{{ vorm }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-field filter-field-sm">
+          <i data-lucide="tag" style="width:15px;height:15px;color:var(--muted);flex-shrink:0;"></i>
+          <select id="filter-status" class="filter-input">
+            <option value="">Alle statussen</option>
+            <option value="concept">Concept</option>
+            <option value="afgerond">Afgerond</option>
+          </select>
+        </div>
+        <button class="btn btn-xs btn-secondary" id="filter-reset" style="white-space:nowrap;">
+          <i data-lucide="x" style="width:13px;height:13px;vertical-align:-1px;margin-right:3px;"></i>Wis filters
+        </button>
       </div>
-      <div class="filter-field filter-field-sm">
-        <i data-lucide="layers" style="width:15px;height:15px;color:var(--muted);flex-shrink:0;"></i>
-        <select id="filter-financiering" class="filter-input">
-          <option value="">Alle financieringsvormen</option>
-          {% set vormen = dossiers | map(attribute='financieringsvorm') | select | unique | sort | list %}
-          {% for vorm in vormen %}
-            <option value="{{ vorm }}">{{ vorm }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="filter-field filter-field-sm">
-        <i data-lucide="tag" style="width:15px;height:15px;color:var(--muted);flex-shrink:0;"></i>
-        <select id="filter-status" class="filter-input">
-          <option value="">Alle statussen</option>
-          <option value="concept">Concept</option>
-          <option value="afgerond">Afgerond</option>
-        </select>
-      </div>
-      <button class="btn btn-xs btn-secondary" id="filter-reset" style="white-space:nowrap;">
-        <i data-lucide="x" style="width:13px;height:13px;vertical-align:-1px;margin-right:3px;"></i>Wis filters
-      </button>
     </div>
 
     <div id="filter-count" style="font-size:13px;color:var(--muted);margin-bottom:12px;display:none;"></div>
 
-    <div class="dossier-grid" id="dossier-grid">
+    <!-- Kaarten weergave -->
+    <div id="view-kaarten" class="dossier-grid" style="display:none;">
       {% for dos in dossiers %}
         <a
           href="{{ url_for('dossier_detail', dossier_id=dos.id) }}"
@@ -71,7 +80,6 @@
           data-jaar="{{ dos.jaar or '' }}"
           data-financiering="{{ dos.financieringsvorm or '' }}"
           data-status="{{ dos.status }}"
-          style="display:flex;"
         >
           <div class="dossier-card-header">
             <div class="dossier-card-icon"><i data-lucide="folder"></i></div>
@@ -91,6 +99,11 @@
           </div>
         </a>
       {% endfor %}
+    </div>
+
+    <!-- Mappenweergave -->
+    <div id="view-mappen" style="display:none;">
+      <div id="mappen-tree"></div>
     </div>
 
     <div id="dossier-leeg" style="display:none;">
@@ -116,58 +129,385 @@
     </div>
   {% endif %}
 </div>
+
+<style>
+.dossier-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.view-switcher {
+  display: flex;
+  gap: 4px;
+  background: var(--surface-2, #f3f4f6);
+  border-radius: 8px;
+  padding: 3px;
+  flex-shrink: 0;
+}
+.view-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  color: var(--muted);
+  cursor: pointer;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+.view-btn:hover { background: var(--surface-3, #e5e7eb); color: var(--foreground); }
+.view-btn.active { background: #fff; color: var(--foreground); box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+.dossier-toolbar .filter-bar { margin-bottom: 0; flex: 1; }
+
+/* Mappenstructuur */
+.map-groep { margin-bottom: 6px; }
+.map-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  border-radius: 8px;
+  background: var(--surface-2, #f3f4f6);
+  cursor: pointer;
+  user-select: none;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--foreground);
+  border: 1px solid transparent;
+  transition: background 0.15s, border-color 0.15s;
+}
+.map-header:hover { background: var(--surface-3, #e5e7eb); }
+.map-header.open { border-color: var(--border, #e5e7eb); background: #fff; }
+.map-caret {
+  width: 14px; height: 14px;
+  color: var(--muted);
+  transition: transform 0.2s;
+  flex-shrink: 0;
+}
+.map-header.open .map-caret { transform: rotate(90deg); }
+.map-icon { width: 16px; height: 16px; color: var(--primary, #2563eb); flex-shrink: 0; }
+.map-count {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  background: var(--surface-3, #e5e7eb);
+  border-radius: 10px;
+  padding: 1px 8px;
+}
+.map-body { display: none; padding-left: 24px; margin-top: 4px; }
+.map-body.open { display: block; }
+
+/* Sub-niveau */
+.map-sub { margin-bottom: 4px; }
+.map-sub-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border-radius: 7px;
+  background: transparent;
+  cursor: pointer;
+  user-select: none;
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--foreground);
+  border: 1px solid transparent;
+  transition: background 0.15s;
+}
+.map-sub-header:hover { background: var(--surface-2, #f3f4f6); }
+.map-sub-header.open { background: var(--surface-2, #f3f4f6); }
+.map-sub-icon { width: 14px; height: 14px; color: var(--muted); flex-shrink: 0; }
+.map-sub-body { display: none; padding-left: 22px; margin-top: 3px; }
+.map-sub-body.open { display: block; }
+
+/* Dossier rij in mappenweergave */
+.dossier-rij {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 7px;
+  text-decoration: none;
+  color: var(--foreground);
+  font-size: 13px;
+  transition: background 0.12s;
+  margin-bottom: 2px;
+}
+.dossier-rij:hover { background: var(--surface-2, #f3f4f6); }
+.dossier-rij-icon { width: 14px; height: 14px; color: var(--primary, #2563eb); flex-shrink: 0; }
+.dossier-rij-name { flex: 1; font-weight: 500; }
+.dossier-rij-meta { font-size: 11px; color: var(--muted); white-space: nowrap; }
+</style>
 {% endblock %}
 
 {% block scripts %}
 <script>
 (function() {
+
+// ─── Data ───────────────────────────────────────────────────────────────────
+const DOSSIERS = [
+  {% for dos in dossiers %}
+  {
+    id: {{ dos.id | tojson }},
+    naam: {{ dos.naam | tojson }},
+    naam_lower: {{ (dos.naam | lower) | tojson }},
+    jaar: {{ dos.jaar | tojson }},
+    financieringsvorm: {{ (dos.financieringsvorm or '') | tojson }},
+    status: {{ dos.status | tojson }},
+    invulling_count: {{ dos.invulling_count }},
+    url: {{ url_for('dossier_detail', dossier_id=dos.id) | tojson }},
+  },
+  {% endfor %}
+];
+
 const STORAGE_KEY = 'docgen_dossier_filters_' + (document.body.dataset.userid || 'anon');
 
-const cards    = Array.from(document.querySelectorAll('.dossier-card'));
-const inNaam   = document.getElementById('filter-naam');
-const inJaar   = document.getElementById('filter-jaar');
-const inFin    = document.getElementById('filter-financiering');
-const inStatus = document.getElementById('filter-status');
-const countEl  = document.getElementById('filter-count');
-const leegEl   = document.getElementById('dossier-leeg');
-const resetBtn = document.getElementById('filter-reset');
-const leegReset = document.getElementById('leeg-reset');
+// ─── Huidige view-modus (van server, bijgewerkt via API) ─────────────────────
+let currentView = {{ view_mode | tojson }};
 
-if (!inNaam) return;
+// ─── DOM refs ────────────────────────────────────────────────────────────────
+const viewBtns      = document.querySelectorAll('.view-btn');
+const viewKaarten   = document.getElementById('view-kaarten');
+const viewMappen    = document.getElementById('view-mappen');
+const mappenTree    = document.getElementById('mappen-tree');
+const inNaam        = document.getElementById('filter-naam');
+const inJaar        = document.getElementById('filter-jaar');
+const inFin         = document.getElementById('filter-financiering');
+const inStatus      = document.getElementById('filter-status');
+const countEl       = document.getElementById('filter-count');
+const leegEl        = document.getElementById('dossier-leeg');
+const resetBtn      = document.getElementById('filter-reset');
+const leegReset     = document.getElementById('leeg-reset');
 
-function applyFilters() {
-  const naam   = inNaam.value.toLowerCase().trim();
-  const jaar   = inJaar.value;
-  const fin    = inFin.value;
-  const status = inStatus.value;
+if (!inNaam) return; // geen dossiers aanwezig
 
+// ─── Filter helpers ──────────────────────────────────────────────────────────
+function getFilters() {
+  return {
+    naam:   inNaam.value.toLowerCase().trim(),
+    jaar:   inJaar.value,
+    fin:    inFin.value,
+    status: inStatus.value,
+  };
+}
+
+function dossiersMatch(filters) {
+  return DOSSIERS.filter(d => {
+    const finVormen = d.financieringsvorm.split(',').map(s => s.trim()).filter(Boolean);
+    return (
+      (!filters.naam   || d.naam_lower.includes(filters.naam)) &&
+      (!filters.jaar   || String(d.jaar) === filters.jaar) &&
+      (!filters.fin    || finVormen.includes(filters.fin)) &&
+      (!filters.status || d.status === filters.status)
+    );
+  });
+}
+
+function heeftFilters(f) {
+  return f.naam || f.jaar || f.fin || f.status;
+}
+
+// ─── Kaarten weergave ────────────────────────────────────────────────────────
+function applyKaartFilters(filters) {
+  const cards = Array.from(viewKaarten.querySelectorAll('.dossier-card'));
   let zichtbaar = 0;
   cards.forEach(card => {
+    const finVormen = (card.dataset.financiering || '').split(',').map(s => s.trim()).filter(Boolean);
     const match =
-      (!naam   || card.dataset.naam.includes(naam)) &&
-      (!jaar   || card.dataset.jaar === jaar) &&
-      (!fin    || card.dataset.financiering.split(',').map(s=>s.trim()).includes(fin)) &&
-      (!status || card.dataset.status === status);
+      (!filters.naam   || card.dataset.naam.includes(filters.naam)) &&
+      (!filters.jaar   || card.dataset.jaar === filters.jaar) &&
+      (!filters.fin    || finVormen.includes(filters.fin)) &&
+      (!filters.status || card.dataset.status === filters.status);
     card.style.display = match ? 'flex' : 'none';
     if (match) zichtbaar++;
   });
+  return zichtbaar;
+}
 
-  const actief = naam || jaar || fin || status;
+// ─── Mappenweergave bouwen ────────────────────────────────────────────────────
+function groepeerDossiers(dossiers, volgorde) {
+  // volgorde: ['jaar','fin'] of ['fin','jaar']
+  const boom = {};
+  dossiers.forEach(d => {
+    const eersteSleutel = volgorde[0] === 'jaar'
+      ? (d.jaar ? String(d.jaar) : '(geen jaar)')
+      : (d.financieringsvorm || '(geen financiering)');
+
+    const finVormen = d.financieringsvorm
+      ? d.financieringsvorm.split(',').map(s => s.trim()).filter(Boolean)
+      : ['(geen financiering)'];
+
+    if (volgorde[0] === 'jaar') {
+      if (!boom[eersteSleutel]) boom[eersteSleutel] = {};
+      finVormen.forEach(fin => {
+        if (!boom[eersteSleutel][fin]) boom[eersteSleutel][fin] = [];
+        boom[eersteSleutel][fin].push(d);
+      });
+    } else {
+      finVormen.forEach(fin => {
+        if (!boom[fin]) boom[fin] = {};
+        const jaarSleutel = d.jaar ? String(d.jaar) : '(geen jaar)';
+        if (!boom[fin][jaarSleutel]) boom[fin][jaarSleutel] = [];
+        boom[fin][jaarSleutel].push(d);
+      });
+    }
+  });
+  return boom;
+}
+
+function bouwMappenHTML(boom, volgorde) {
+  const eersteLabel = volgorde[0] === 'jaar' ? 'Jaar' : 'Financiering';
+  const tweedeLabel = volgorde[0] === 'jaar' ? 'Financiering' : 'Jaar';
+
+  // Sorteer eerste niveau
+  const eersteSleutels = Object.keys(boom).sort((a, b) => {
+    // Zet "(geen ...)" altijd onderaan
+    if (a.startsWith('(')) return 1;
+    if (b.startsWith('(')) return -1;
+    // Jaren aflopend, rest alfabetisch
+    if (volgorde[0] === 'jaar') return b.localeCompare(a, 'nl', {numeric: true});
+    return a.localeCompare(b, 'nl');
+  });
+
+  let html = '';
+  eersteSleutels.forEach((eSleutel, ei) => {
+    const subBoom = boom[eSleutel];
+    const totaalCount = Object.values(subBoom).reduce((s, arr) => s + arr.length, 0);
+    const mapId = `map-${ei}`;
+
+    html += `<div class="map-groep">
+      <div class="map-header" data-map="${mapId}" aria-expanded="false">
+        <i data-lucide="chevron-right" class="map-caret"></i>
+        <i data-lucide="folder" class="map-icon"></i>
+        <span>${escHtml(eSleutel)}</span>
+        <span class="map-count">${totaalCount}</span>
+      </div>
+      <div class="map-body" id="${mapId}">`;
+
+    // Sorteer tweede niveau
+    const tweedeSleutels = Object.keys(subBoom).sort((a, b) => {
+      if (a.startsWith('(')) return 1;
+      if (b.startsWith('(')) return -1;
+      if (volgorde[1] === 'jaar') return b.localeCompare(a, 'nl', {numeric: true});
+      return a.localeCompare(b, 'nl');
+    });
+
+    tweedeSleutels.forEach((tSleutel, ti) => {
+      const dossiersInMap = subBoom[tSleutel];
+      const subId = `map-${ei}-${ti}`;
+
+      html += `<div class="map-sub">
+        <div class="map-sub-header" data-map="${subId}" aria-expanded="false">
+          <i data-lucide="chevron-right" class="map-caret" style="width:13px;height:13px;"></i>
+          <i data-lucide="folder" class="map-sub-icon"></i>
+          <span>${escHtml(tSleutel)}</span>
+          <span class="map-count">${dossiersInMap.length}</span>
+        </div>
+        <div class="map-sub-body" id="${subId}">`;
+
+      dossiersInMap.forEach(d => {
+        html += `<a href="${escHtml(d.url)}" class="dossier-rij">
+          <i data-lucide="file-text" class="dossier-rij-icon"></i>
+          <span class="dossier-rij-name">${escHtml(d.naam)}</span>
+          <span class="dossier-rij-meta">${d.invulling_count} invulling${d.invulling_count !== 1 ? 'en' : ''}</span>
+          <span class="badge badge-dossier-${escHtml(d.status)}" style="font-size:10px;padding:2px 7px;">
+            ${d.status === 'afgerond' ? 'Afgerond' : 'Concept'}
+          </span>
+        </a>`;
+      });
+
+      html += `</div></div>`;
+    });
+
+    html += `</div></div>`;
+  });
+
+  return html || '<div style="color:var(--muted);font-size:13px;padding:16px;">Geen dossiers gevonden.</div>';
+}
+
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function renderMappen(filters) {
+  const gefilterd = dossiersMatch(filters);
+  const volgorde = currentView === 'jaar-fin-dos' ? ['jaar', 'fin'] : ['fin', 'jaar'];
+  const boom = groepeerDossiers(gefilterd, volgorde);
+  mappenTree.innerHTML = bouwMappenHTML(boom, volgorde);
+  lucide.createIcons({ nodes: [mappenTree] });
+  bindMapToggle();
+  return gefilterd.length;
+}
+
+function bindMapToggle() {
+  mappenTree.querySelectorAll('[data-map]').forEach(header => {
+    header.addEventListener('click', function() {
+      const id = this.dataset.map;
+      const body = document.getElementById(id);
+      const isOpen = body.classList.toggle('open');
+      this.classList.toggle('open', isOpen);
+      this.setAttribute('aria-expanded', isOpen);
+    });
+  });
+}
+
+// ─── View wisselen ────────────────────────────────────────────────────────────
+function toonView(view, filters) {
+  const isMappen = view === 'jaar-fin-dos' || view === 'fin-jaar-dos';
+  viewKaarten.style.display = isMappen ? 'none' : '';
+  viewMappen.style.display  = isMappen ? '' : 'none';
+
+  let zichtbaar;
+  if (isMappen) {
+    zichtbaar = renderMappen(filters);
+  } else {
+    zichtbaar = applyKaartFilters(filters);
+  }
+
+  const actief = heeftFilters(filters);
   countEl.style.display = actief ? '' : 'none';
-  if (actief) countEl.textContent = `${zichtbaar} van ${cards.length} dossier${cards.length !== 1 ? 's' : ''} zichtbaar`;
+  if (actief) countEl.textContent = `${zichtbaar} van ${DOSSIERS.length} dossier${DOSSIERS.length !== 1 ? 's' : ''} zichtbaar`;
   leegEl.style.display = (zichtbaar === 0) ? '' : 'none';
+}
 
-  // Opslaan per gebruiker
+function setView(view) {
+  currentView = view;
+  viewBtns.forEach(b => b.classList.toggle('active', b.dataset.view === view));
+  toonView(view, getFilters());
+  // Voorkeur opslaan
+  fetch('/api/preferences', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ preferences: { dossiers_view: view } }),
+  }).catch(() => {});
+}
+
+viewBtns.forEach(btn => {
+  btn.addEventListener('click', () => setView(btn.dataset.view));
+});
+
+// ─── Filters ─────────────────────────────────────────────────────────────────
+function applyFilters() {
+  const filters = getFilters();
+  toonView(currentView, filters);
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ naam, jaar, fin, status }));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ naam: filters.naam, jaar: filters.jaar, fin: filters.fin, status: filters.status }));
   } catch(e) {}
 }
 
 function resetFilters() {
-  inNaam.value = '';
-  inJaar.value = '';
-  inFin.value = '';
-  inStatus.value = '';
+  inNaam.value = ''; inJaar.value = ''; inFin.value = ''; inStatus.value = '';
   applyFilters();
 }
 
@@ -189,8 +529,12 @@ inStatus.addEventListener('change', applyFilters);
 resetBtn.addEventListener('click', resetFilters);
 if (leegReset) leegReset.addEventListener('click', e => { e.preventDefault(); resetFilters(); });
 
+// ─── Init ─────────────────────────────────────────────────────────────────────
 loadSavedFilters();
-applyFilters();
+toonView(currentView, getFilters());
+// Sync actieve knop met server-voorkeur
+viewBtns.forEach(b => b.classList.toggle('active', b.dataset.view === currentView));
+
 })();
 </script>
 {% endblock %}
