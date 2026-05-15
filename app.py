@@ -1085,60 +1085,6 @@ def admin_config():
     return render_template("admin_config.html", cfg=cfg, users=users, financieringsvormen=financieringsvormen)
 
 
-@app.route("/admin/submissions")
-@admin_required
-def admin_submissions():
-    cfg = get_config()
-    try:
-        subs_res = (
-            supabase.table("submissions")
-            .select("id,submitted_at,values,token_id")
-            .order("submitted_at", desc=True)
-            .execute()
-        )
-        submissions = subs_res.data or []
-    except Exception as e:
-        flash(f"Fout bij ophalen inzendingen: {e}", "error")
-        submissions = []
-
-    # Enrich with token + template info
-    token_cache = {}
-    template_cache = {}
-    enriched = []
-    for sub in submissions:
-        tid = sub.get("token_id")
-        if tid not in token_cache:
-            try:
-                tok = supabase.table("tokens").select("description,template_id,status").eq("id", tid).single().execute()
-                token_cache[tid] = tok.data or {}
-            except Exception:
-                token_cache[tid] = {}
-
-        token = token_cache.get(tid, {})
-        tmpl_id = token.get("template_id")
-
-        if tmpl_id and tmpl_id not in template_cache:
-            try:
-                tmpl = supabase.table("templates").select("name").eq("id", tmpl_id).single().execute()
-                template_cache[tmpl_id] = tmpl.data or {}
-            except Exception:
-                template_cache[tmpl_id] = {}
-
-        tmpl_data = template_cache.get(tmpl_id, {}) if tmpl_id else {}
-        values = sub.get("values") or {}
-        if isinstance(values, str):
-            values = json.loads(values)
-
-        enriched.append({
-            **sub,
-            "token_description": token.get("description", "—"),
-            "template_name": tmpl_data.get("name", "—"),
-            "token_status": token.get("status", "—"),
-            "values": values,
-        })
-
-    return render_template("admin_submissions.html", cfg=cfg, submissions=enriched)
-
 
 # ---------------------------------------------------------------------------
 # Dossier routes (ingelogd vereist)
