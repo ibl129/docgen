@@ -489,7 +489,8 @@ function setView(view) {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({ preferences: { dossiers_view: view } }),
-  }).catch(() => {});
+  }).then(r => { if (!r.ok) r.text().then(t => console.error('Voorkeur opslaan mislukt:', t)); })
+    .catch(e => console.error('Voorkeur opslaan mislukt:', e));
 }
 
 viewBtns.forEach(btn => {

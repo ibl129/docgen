@@ -1531,15 +1531,22 @@ def get_preferences():
 def set_preferences():
     user_id = session.get("user_id")
     data = request.get_json(silent=True) or {}
-    prefs = data.get("preferences", {})
-    if not isinstance(prefs, dict):
+    nieuwe_prefs = data.get("preferences", {})
+    if not isinstance(nieuwe_prefs, dict):
         return {"error": "Ongeldig formaat"}, 400
     try:
-        supabase.table("user_preferences").upsert({
-            "user_id": user_id,
-            "preferences": prefs,
-        }).execute()
+        # Haal bestaande preferences op en merge
+        res = supabase.table("user_preferences").select("preferences").eq("user_id", user_id).execute()
+        bestaand = res.data[0]["preferences"] if res.data else {}
+        if not isinstance(bestaand, dict):
+            bestaand = {}
+        samengevoegd = {**bestaand, **nieuwe_prefs}
+        supabase.table("user_preferences").upsert(
+            {"user_id": user_id, "preferences": samengevoegd},
+            on_conflict="user_id",
+        ).execute()
     except Exception as e:
+        app.logger.error(f"Fout bij opslaan preferences user={user_id}: {e}")
         return {"error": str(e)}, 500
     return {"ok": True}
 
