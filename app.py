@@ -1701,11 +1701,8 @@ def dossier_extern(token_id):
         waarden = inv.get("waarden") or {}
         if isinstance(waarden, str):
             waarden = json.loads(waarden)
-        # For invulbare invullingen, only expose extern fields to the external view
-        if inv.get("extern_toegang") == "invulbaar":
-            visible_fields = [f for f in all_fields if f.get("eigenaar") == "extern"]
-        else:
-            visible_fields = all_fields
+        # Externe pagina toont altijd alleen velden met eigenaar == "extern"
+        visible_fields = [f for f in all_fields if f.get("eigenaar") == "extern"]
         # Invulling vergrendeld als dossier afgerond is of extern_status == verzonden
         invulling_vergrendeld = (
             dossier_afgesloten or
