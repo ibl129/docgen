@@ -138,6 +138,45 @@
     </div>
   </div>
 
+  <!-- Financieringsvormen als systeemvariabelen -->
+  <div class="card" style="margin-top:24px;">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+      <i data-lucide="landmark" style="width:16px;height:16px;color:var(--primary);"></i>
+      <h2 style="font-size:15px;font-weight:600;margin:0;">Financieringsvormen</h2>
+    </div>
+    <p style="color:var(--muted);font-size:13px;margin:0 0 16px;">
+      Per ingestelde financieringsvorm is automatisch een systeemvariabele beschikbaar. De waarde is <code style="font-size:12px;">ja</code> als de vorm actief is op het dossier, anders leeg. Gebruik ze met <code style="font-size:12px;">{{"{{"}}#if …{{"}}"}}</code> om paragrafen conditioneel op te nemen. Beheer de vormen via <a href="{{ url_for('admin_config') }}" style="color:var(--primary);">Instellingen</a>.
+    </p>
+    {% if fin_vormen %}
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Financieringsvorm</th>
+              <th>Systeemvariabele</th>
+              <th>Gebruik in conditioneel blok</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for naam in fin_vormen %}
+              <tr>
+                <td style="font-size:13px;">{{ naam }}</td>
+                <td><code style="background:var(--bg);padding:2px 7px;border-radius:6px;font-size:12px;color:var(--primary);">{{"{{"}}{{ fin_slug(naam) }}{{"}}"}}</code></td>
+                <td style="font-size:12px;color:var(--muted);">
+                  <code style="font-size:11px;">{{"{{"}}#if {{ fin_slug(naam) }}{{"}}"}}</code> … <code style="font-size:11px;">{{"{{"}}{{"/if"}}{{"}}"}}</code>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state" style="padding:20px;">
+        <div class="empty-state-body">Nog geen financieringsvormen ingesteld. Voeg ze toe via <a href="{{ url_for('admin_config') }}" style="color:var(--primary);">Instellingen</a>.</div>
+      </div>
+    {% endif %}
+  </div>
+
   <!-- Conditionele blokken -->
   <div class="card" style="margin-top:24px;">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">

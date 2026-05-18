@@ -23,9 +23,11 @@ app.wsgi_app = __import__('whitenoise').WhiteNoise(app.wsgi_app, root='static/',
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
+SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY", "")
 SUPABASE_BUCKET = os.environ.get("SUPABASE_BUCKET", "docgen-files")
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+supabase_admin: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY) if SUPABASE_SERVICE_KEY else supabase
 
 # ---------------------------------------------------------------------------
 # Config helpers
@@ -200,6 +202,14 @@ def build_system_values(cfg: dict, dossier: dict = None, templates_in_dossier: l
         "_bijlagen_aantal":   str(len(templates_in_dossier)) if templates_in_dossier is not None else "",
         "_bijlage_volgnummer": str(positie) if positie is not None else "",
     }
+    # Financieringsvormen: elke actieve vorm levert een _fin_<slug> systeemvariabele op.
+    # Waarde is "ja" als de vorm actief is op het dossier, anders "" (zodat {{#if}} werkt).
+    actieve_vormen = set()
+    if dossier:
+        raw = dossier.get("financieringsvorm") or ""
+        actieve_vormen = {v.strip() for v in raw.split(",") if v.strip()}
+    for naam in _get_financieringsvormen():
+        sv[_fin_slug(naam)] = "ja" if naam in actieve_vormen else ""
     return sv
 
 
@@ -769,6 +779,19 @@ def fill_thanks(token_id):
 # Admin routes
 # ---------------------------------------------------------------------------
 
+@app.route("/sjablonen")
+@login_required
+def sjablonen():
+    cfg = get_config()
+    try:
+        templates_res = supabase.table("templates").select("id,name,created_at").order("created_at", desc=True).execute()
+        templates = templates_res.data or []
+    except Exception:
+        templates = []
+    fin_vormen = _get_financieringsvormen()
+    return render_template("sjablonen.html", cfg=cfg, templates=templates, system_variables=SYSTEM_VARIABLES, fin_vormen=fin_vormen, fin_slug=_fin_slug)
+
+
 @app.route("/admin")
 @admin_required
 def admin():
@@ -789,17 +812,20 @@ def admin():
     except Exception:
         token_stats = {"total": 0, "sealed": 0, "pending": 0}
 
+    fin_vormen = _get_financieringsvormen()
     return render_template(
         "admin.html",
         cfg=cfg,
         templates=templates,
         token_stats=token_stats,
         system_variables=SYSTEM_VARIABLES,
+        fin_vormen=fin_vormen,
+        fin_slug=_fin_slug,
     )
 
 
 @app.route("/admin/template/scan", methods=["POST"])
-@admin_required
+@login_required
 def admin_template_scan():
     """Scan een geüpload .docx bestand en geef gevonden placeholders terug als JSON."""
     docx_file = request.files.get("docx_file")
@@ -839,7 +865,7 @@ def admin_template_scan():
 
 
 @app.route("/admin/template/new", methods=["GET", "POST"])
-@admin_required
+@login_required
 def admin_template_new():
     cfg = get_config()
     if request.method == "POST":
@@ -894,7 +920,7 @@ def admin_template_new():
 
 
 @app.route("/admin/template/<template_id>/edit", methods=["GET", "POST"])
-@admin_required
+@login_required
 def admin_template_edit(template_id):
     cfg = get_config()
     try:
@@ -962,7 +988,7 @@ def admin_template_edit(template_id):
 
 
 @app.route("/admin/template/<template_id>/delete", methods=["POST"])
-@admin_required
+@login_required
 def admin_template_delete(template_id):
     try:
         tmpl = supabase.table("templates").select("docx_path").eq("id", template_id).single().execute()
@@ -1011,7 +1037,7 @@ def admin_config():
                 flash("E-mailadres en wachtwoord zijn verplicht.", "error")
             else:
                 try:
-                    supabase.auth.admin.create_user({
+                    supabase_admin.auth.admin.create_user({
                         "email": new_email,
                         "password": new_password,
                         "user_metadata": {"name": new_name, "role": new_role},
@@ -1025,7 +1051,7 @@ def admin_config():
         if action == "delete_user":
             user_id = request.form.get("user_id")
             try:
-                supabase.auth.admin.delete_user(user_id)
+                supabase_admin.auth.admin.delete_user(user_id)
                 flash("Gebruiker verwijderd.", "success")
             except Exception as e:
                 flash(f"Fout: {e}", "error")
@@ -1065,7 +1091,7 @@ def admin_config():
             return redirect(url_for("admin_config"))
 
     try:
-        users_res = supabase.auth.admin.list_users()
+        users_res = supabase_admin.auth.admin.list_users()
         raw = users_res if isinstance(users_res, list) else []
         users = [{
             "id": str(u.id),
@@ -1079,6 +1105,8 @@ def admin_config():
     try:
         fin_res = supabase.table("financieringsvormen").select("*").order("naam").execute()
         financieringsvormen = fin_res.data or []
+        for f in financieringsvormen:
+            f["slug"] = _fin_slug(f["naam"])
     except Exception:
         financieringsvormen = []
 
@@ -1122,6 +1150,14 @@ def dossiers_overzicht():
     return render_template("dossiers.html", cfg=cfg, dossiers=dossier_list, view_mode=view_mode)
 
 
+def _fin_slug(naam: str) -> str:
+    """Zet een financieringsvorm-naam om naar een template-placeholder slug, bijv. 'Wlz' → '_fin_wlz'."""
+    import re as _re
+    slug = naam.lower().strip()
+    slug = _re.sub(r'[^a-z0-9]+', '_', slug).strip('_')
+    return f"_fin_{slug}"
+
+
 def _get_financieringsvormen() -> list:
     try:
         res = supabase.table("financieringsvormen").select("naam").order("naam").execute()
@@ -1148,6 +1184,7 @@ def dossier_nieuw():
         jaar_raw = request.form.get("jaar", "").strip()
         vormen = request.form.getlist("financieringsvorm")
         financieringsvorm = ", ".join(sorted(v.strip() for v in vormen if v.strip())) or None
+        oa_type = request.form.get("oa_type", "").strip() or None
 
         try:
             jaar = int(jaar_raw) if jaar_raw else None
@@ -1168,6 +1205,7 @@ def dossier_nieuw():
                 "omschrijving": omschrijving or None,
                 "jaar": jaar,
                 "financieringsvorm": financieringsvorm,
+                "oa_type": oa_type,
             }).execute()
             dossier_id = dos_res.data[0]["id"]
         except Exception as e:
@@ -1417,6 +1455,7 @@ def dossier_bewerken(dossier_id):
     jaar_raw = request.form.get("jaar", "").strip()
     vormen = request.form.getlist("financieringsvorm")
     financieringsvorm = ", ".join(sorted(v.strip() for v in vormen if v.strip())) or None
+    oa_type = request.form.get("oa_type", "").strip() or None
 
     try:
         jaar = int(jaar_raw) if jaar_raw else None
@@ -1433,6 +1472,7 @@ def dossier_bewerken(dossier_id):
             "omschrijving": omschrijving or None,
             "jaar": jaar,
             "financieringsvorm": financieringsvorm,
+            "oa_type": oa_type,
             "updated_at": datetime.utcnow().isoformat(),
         }).eq("id", dossier_id).execute()
         flash("Dossier bijgewerkt.", "success")

@@ -110,7 +110,7 @@
           <thead>
             <tr>
               <th>Naam</th>
-              <th>Bewerken</th>
+              <th>Placeholder in sjabloon</th>
               <th>Verwijderen</th>
             </tr>
           </thead>
@@ -125,7 +125,10 @@
                     <button type="submit" class="btn btn-xs btn-outline">Opslaan</button>
                   </form>
                 </td>
-                <td></td>
+                <td>
+                  <code style="background:var(--bg);padding:2px 7px;border-radius:6px;font-size:12px;color:var(--primary);">{{"{{"}}{{ fin.slug }}{{"}}"}}</code>
+                  <span style="color:var(--muted);font-size:12px;margin-left:6px;">→ gebruik in <code style="font-size:11px;">{{"{{"}}#if {{ fin.slug }}{{"}}"}}</code></span>
+                </td>
                 <td>
                   <form method="post" action="{{ url_for('admin_config') }}" style="margin:0;">
                     <input type="hidden" name="action" value="delete_financieringsvorm">
