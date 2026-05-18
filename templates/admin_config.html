@@ -152,6 +152,76 @@
     {% endif %}
   </div>
 
+  <!-- Dossiertypes -->
+  <div class="card" style="margin-top:20px;">
+    <div class="card-header">
+      <div>
+        <div class="card-title">Dossiertypes <span style="font-size:12px;font-weight:400;color:var(--muted);">(optioneel)</span></div>
+        <div class="card-subtitle">Keuzemogelijkheden voor het veld "Soort" bij dossiers. Zolang er geen types zijn ingesteld, is het veld verborgen. Voeg een beschrijving toe voor een tooltip.</div>
+      </div>
+    </div>
+
+    <form method="post" action="{{ url_for('admin_config') }}" style="margin-bottom:16px;">
+      <input type="hidden" name="action" value="add_dossier_type">
+      <div style="display:grid;grid-template-columns:1fr 2fr auto;gap:10px;align-items:flex-end;">
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">Naam</label>
+          <input type="text" name="dt_naam" class="form-control" placeholder="bv. Comfortleverancier" autocomplete="off" required>
+        </div>
+        <div class="form-group" style="margin-bottom:0;">
+          <label class="form-label">Beschrijving <span style="font-weight:400;color:var(--muted);">(tooltip)</span></label>
+          <input type="text" name="dt_beschrijving" class="form-control" placeholder="Korte uitleg die als tooltip verschijnt…" autocomplete="off">
+        </div>
+        <button type="submit" class="btn btn-outline">+ Toevoegen</button>
+      </div>
+    </form>
+
+    {% if dossier_types %}
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:200px;">Naam</th>
+              <th>Beschrijving (tooltip)</th>
+              <th style="width:100px;">Verwijderen</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for dt in dossier_types %}
+              <tr>
+                <td colspan="3">
+                  <form method="post" action="{{ url_for('admin_config') }}" style="margin:0;display:grid;grid-template-columns:1fr 2fr auto auto;gap:8px;align-items:center;">
+                    <input type="hidden" name="action" value="update_dossier_type">
+                    <input type="hidden" name="dt_id" value="{{ dt.id }}">
+                    <input type="text" name="dt_naam" class="form-control" value="{{ dt.naam }}" style="font-size:13px;" required>
+                    <input type="text" name="dt_beschrijving" class="form-control" value="{{ dt.beschrijving or '' }}" style="font-size:13px;" placeholder="Tooltip-tekst…">
+                    <button type="submit" class="btn btn-xs btn-outline">Opslaan</button>
+                    <span></span>
+                  </form>
+                </td>
+              </tr>
+              <tr style="border-top:none;">
+                <td colspan="3" style="padding-top:0;text-align:right;">
+                  <form method="post" action="{{ url_for('admin_config') }}" style="margin:0;display:inline;">
+                    <input type="hidden" name="action" value="delete_dossier_type">
+                    <input type="hidden" name="dt_id" value="{{ dt.id }}">
+                    <button type="submit" class="btn btn-xs btn-danger-outline"
+                      onclick="return confirm('Dossiertype \'{{ dt.naam }}\' verwijderen?')"
+                    >Verwijderen</button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="empty-state" style="padding:20px;">
+        <div class="empty-state-body">Nog geen dossiertypes. Voeg er een toe om het veld "Soort" zichtbaar te maken bij dossiers.</div>
+      </div>
+    {% endif %}
+  </div>
+
   <!-- User management -->
   <div class="card" style="margin-top:20px;">
     <div class="card-header">

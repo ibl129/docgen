@@ -289,22 +289,21 @@
             </label>
             <textarea name="omschrijving" class="form-control" rows="2" style="font-size:13px;">{{ dossier.omschrijving or '' }}</textarea>
           </div>
+          {% if dossier_types %}
           <div class="form-group" style="margin-bottom:10px;">
             <label class="form-label" style="font-size:12px;">
               <span class="veld-dot veld-dot-intern" style="vertical-align:middle;"></span>
-              Soort onderaannemer
-              <span class="tooltip-anchor" style="cursor:help;margin-left:3px;" title="">
-                <i data-lucide="info" style="width:12px;height:12px;vertical-align:-1px;color:var(--muted);"></i>
-              </span>
+              Soort
             </label>
             <select name="oa_type" class="form-control" style="font-size:13px;" id="oa-type-select">
               <option value="">— Niet opgegeven —</option>
-              <option value="Comfortleverancier" {% if dossier.oa_type == 'Comfortleverancier' %}selected{% endif %}>Comfortleverancier</option>
-              <option value="Regioverovering" {% if dossier.oa_type == 'Regioverovering' %}selected{% endif %}>Regioverovering</option>
-              <option value="Doorleverancier" {% if dossier.oa_type == 'Doorleverancier' %}selected{% endif %}>Doorleverancier (hostfunctie)</option>
+              {% for dt in dossier_types %}
+                <option value="{{ dt.naam }}" {% if dossier.oa_type == dt.naam %}selected{% endif %}>{{ dt.naam }}</option>
+              {% endfor %}
             </select>
             <div id="oa-type-toelichting" style="margin-top:7px;padding:9px 11px;background:var(--bg);border-radius:8px;font-size:12px;color:var(--muted);line-height:1.55;display:none;"></div>
           </div>
+          {% endif %}
           <div class="form-group" style="margin-bottom:10px;">
             <label class="form-label" style="font-size:12px;">Jaar</label>
             <input type="number" name="jaar" class="form-control" value="{{ dossier.jaar or '' }}" min="2000" max="2099" placeholder="2026" style="font-size:13px;">
@@ -354,28 +353,23 @@
 
 {% block scripts %}
 <script>
+{% if dossier_types %}
 const OA_TYPES = {
-  "Comfortleverancier": "Verplichte of bewust gekozen samenwerking om piek- en flexcapaciteit af te dekken. Aafje levert het merendeel; de onderaannemer vult aan.",
-  "Regioverovering": "Inzet om tijdelijk extra volume te absorberen terwijl eigen capaciteit wordt opgebouwd. Expliciete in-sourcing-horizon.",
-  "Doorleverancier": "Aafje fungeert als hoofdcontractant voor derden die zelf geen of beperkt contract hebben. Aafje draagt contractueel risico richting verzekeraar."
+  {% for dt in dossier_types %}{% if dt.beschrijving %}{{ dt.naam | tojson }}: {{ dt.beschrijving | tojson }}{% if not loop.last %},{% endif %}{% endif %}{% endfor %}
 };
-
 (function() {
   const sel = document.getElementById('oa-type-select');
   const box = document.getElementById('oa-type-toelichting');
   if (!sel || !box) return;
   function update() {
-    const key = Object.keys(OA_TYPES).find(k => sel.value.startsWith(k));
-    if (key) {
-      box.textContent = OA_TYPES[key];
-      box.style.display = 'block';
-    } else {
-      box.style.display = 'none';
-    }
+    const desc = OA_TYPES[sel.value];
+    if (desc) { box.textContent = desc; box.style.display = 'block'; }
+    else { box.style.display = 'none'; }
   }
   sel.addEventListener('change', update);
   update();
 })();
+{% endif %}
 
 function copyDossierUrl(tokenId, url) {
   navigator.clipboard.writeText(url).then(() => {

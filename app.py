@@ -1089,6 +1089,41 @@ def admin_config():
                     flash(f"Fout: {e}", "error")
             return redirect(url_for("admin_config"))
 
+        if action == "add_dossier_type":
+            naam = request.form.get("dt_naam", "").strip()
+            beschrijving = request.form.get("dt_beschrijving", "").strip()
+            if naam:
+                try:
+                    supabase.table("dossier_types").insert({"naam": naam, "beschrijving": beschrijving or None}).execute()
+                    flash("Dossiertype toegevoegd.", "success")
+                except Exception as e:
+                    flash(f"Fout: {e}", "error")
+            else:
+                flash("Naam is verplicht.", "error")
+            return redirect(url_for("admin_config"))
+
+        if action == "update_dossier_type":
+            dt_id = request.form.get("dt_id")
+            naam = request.form.get("dt_naam", "").strip()
+            beschrijving = request.form.get("dt_beschrijving", "").strip()
+            if dt_id and naam:
+                try:
+                    supabase.table("dossier_types").update({"naam": naam, "beschrijving": beschrijving or None}).eq("id", dt_id).execute()
+                    flash("Dossiertype bijgewerkt.", "success")
+                except Exception as e:
+                    flash(f"Fout: {e}", "error")
+            return redirect(url_for("admin_config"))
+
+        if action == "delete_dossier_type":
+            dt_id = request.form.get("dt_id")
+            if dt_id:
+                try:
+                    supabase.table("dossier_types").delete().eq("id", dt_id).execute()
+                    flash("Dossiertype verwijderd.", "success")
+                except Exception as e:
+                    flash(f"Fout: {e}", "error")
+            return redirect(url_for("admin_config"))
+
     try:
         users_res = supabase_admin.auth.admin.list_users()
         raw = users_res if isinstance(users_res, list) else []
@@ -1109,7 +1144,9 @@ def admin_config():
     except Exception:
         financieringsvormen = []
 
-    return render_template("admin_config.html", cfg=cfg, users=users, financieringsvormen=financieringsvormen)
+    dossier_types = _get_dossier_types()
+
+    return render_template("admin_config.html", cfg=cfg, users=users, financieringsvormen=financieringsvormen, dossier_types=dossier_types)
 
 
 
@@ -1149,6 +1186,15 @@ def dossiers_overzicht():
     return render_template("dossiers.html", cfg=cfg, dossiers=dossier_list, view_mode=view_mode)
 
 
+def _get_dossier_types() -> list:
+    """Geeft lijst van {id, naam, beschrijving} dossier-types terug, of [] als geen geconfigureerd."""
+    try:
+        res = supabase.table("dossier_types").select("id,naam,beschrijving").order("naam").execute()
+        return res.data or []
+    except Exception:
+        return []
+
+
 def _fin_slug(naam: str) -> str:
     """Zet een financieringsvorm-naam om naar een template-placeholder slug, bijv. 'Wlz' → '_fin_wlz'."""
     import re as _re
@@ -1175,6 +1221,7 @@ def dossier_nieuw():
     except Exception:
         templates = []
     fin_vormen = _get_financieringsvormen()
+    dossier_types = _get_dossier_types()
 
     if request.method == "POST":
         naam = request.form.get("naam", "").strip()
@@ -1192,11 +1239,11 @@ def dossier_nieuw():
 
         if not naam:
             flash("Naam is verplicht.", "error")
-            return render_template("dossier_nieuw.html", cfg=cfg, templates=templates, now=datetime.now(), fin_vormen=fin_vormen)
+            return render_template("dossier_nieuw.html", cfg=cfg, templates=templates, now=datetime.now(), fin_vormen=fin_vormen, dossier_types=dossier_types)
 
         if not template_ids:
             flash("Selecteer minimaal één sjabloon.", "error")
-            return render_template("dossier_nieuw.html", cfg=cfg, templates=templates, now=datetime.now(), fin_vormen=fin_vormen)
+            return render_template("dossier_nieuw.html", cfg=cfg, templates=templates, now=datetime.now(), fin_vormen=fin_vormen, dossier_types=dossier_types)
 
         try:
             dos_res = supabase.table("dossiers").insert({
@@ -1209,7 +1256,7 @@ def dossier_nieuw():
             dossier_id = dos_res.data[0]["id"]
         except Exception as e:
             flash(f"Fout bij aanmaken dossier: {e}", "error")
-            return render_template("dossier_nieuw.html", cfg=cfg, templates=templates, now=datetime.now(), fin_vormen=fin_vormen)
+            return render_template("dossier_nieuw.html", cfg=cfg, templates=templates, now=datetime.now(), fin_vormen=fin_vormen, dossier_types=dossier_types)
 
         for tid in template_ids:
             try:
@@ -1225,7 +1272,7 @@ def dossier_nieuw():
         flash("Dossier aangemaakt.", "success")
         return redirect(url_for("dossier_detail", dossier_id=dossier_id))
 
-    return render_template("dossier_nieuw.html", cfg=cfg, templates=templates, now=datetime.now(), fin_vormen=fin_vormen)
+    return render_template("dossier_nieuw.html", cfg=cfg, templates=templates, now=datetime.now(), fin_vormen=fin_vormen, dossier_types=dossier_types)
 
 
 @app.route("/dossier/<dossier_id>")
@@ -1277,6 +1324,7 @@ def dossier_detail(dossier_id):
         tokens = []
 
     fin_vormen = _get_financieringsvormen()
+    dossier_types = _get_dossier_types()
 
     return render_template(
         "dossier_detail.html",
@@ -1285,6 +1333,7 @@ def dossier_detail(dossier_id):
         invullingen=invullingen,
         tokens=tokens,
         fin_vormen=fin_vormen,
+        dossier_types=dossier_types,
     )
 
 

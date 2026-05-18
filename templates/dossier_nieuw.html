@@ -46,16 +46,18 @@
         ></textarea>
       </div>
 
+      {% if dossier_types %}
       <div class="form-group">
-        <label class="form-label" for="oa_type">Soort onderaannemer <span style="font-size:11px;color:var(--muted);font-weight:400;">(alleen intern)</span></label>
+        <label class="form-label" for="oa_type">Soort <span style="font-size:11px;color:var(--muted);font-weight:400;">(alleen intern)</span></label>
         <select id="oa_type" name="oa_type" class="form-control">
           <option value="">— Niet opgegeven —</option>
-          <option value="Comfortleverancier">Comfortleverancier</option>
-          <option value="Regioverovering">Regioverovering</option>
-          <option value="Doorleverancier">Doorleverancier (hostfunctie)</option>
+          {% for dt in dossier_types %}
+            <option value="{{ dt.naam }}">{{ dt.naam }}</option>
+          {% endfor %}
         </select>
         <div id="oa-type-toelichting-nieuw" style="margin-top:7px;padding:9px 11px;background:var(--bg);border-radius:8px;font-size:12px;color:var(--muted);line-height:1.55;display:none;"></div>
       </div>
+      {% endif %}
 
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
         <div class="form-group">
@@ -129,22 +131,22 @@
 {% endblock %}
 
 {% block scripts %}
+{% if dossier_types %}
 <script>
 const OA_TYPES_NIEUW = {
-  "Comfortleverancier": "Verplichte of bewust gekozen samenwerking om piek- en flexcapaciteit af te dekken. Aafje levert het merendeel; de onderaannemer vult aan.",
-  "Regioverovering": "Inzet om tijdelijk extra volume te absorberen terwijl eigen capaciteit wordt opgebouwd. Expliciete in-sourcing-horizon.",
-  "Doorleverancier": "Aafje fungeert als hoofdcontractant voor derden die zelf geen of beperkt contract hebben. Aafje draagt contractueel risico richting verzekeraar."
+  {% for dt in dossier_types %}{% if dt.beschrijving %}{{ dt.naam | tojson }}: {{ dt.beschrijving | tojson }}{% if not loop.last %},{% endif %}{% endif %}{% endfor %}
 };
 (function() {
   const sel = document.getElementById('oa_type');
   const box = document.getElementById('oa-type-toelichting-nieuw');
   if (!sel || !box) return;
   function update() {
-    const key = Object.keys(OA_TYPES_NIEUW).find(k => sel.value.startsWith(k));
-    if (key) { box.textContent = OA_TYPES_NIEUW[key]; box.style.display = 'block'; }
+    const desc = OA_TYPES_NIEUW[sel.value];
+    if (desc) { box.textContent = desc; box.style.display = 'block'; }
     else { box.style.display = 'none'; }
   }
   sel.addEventListener('change', update);
 })();
 </script>
+{% endif %}
 {% endblock %}
