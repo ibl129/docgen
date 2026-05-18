@@ -9,6 +9,8 @@ services:
         sync: false
       - key: SUPABASE_KEY
         sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
       - key: SUPABASE_BUCKET
         value: docgen-files
       - key: TENANT_NAME
