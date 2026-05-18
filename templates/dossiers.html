@@ -73,31 +73,36 @@
     <!-- Kaarten weergave -->
     <div id="view-kaarten" class="dossier-grid" style="display:none;">
       {% for dos in dossiers %}
-        <a
-          href="{{ url_for('dossier_detail', dossier_id=dos.id) }}"
-          class="dossier-card"
+        <div class="dossier-card-wrap"
           data-naam="{{ dos.naam | lower }}"
           data-jaar="{{ dos.jaar or '' }}"
           data-financiering="{{ dos.financieringsvorm or '' }}"
           data-status="{{ dos.status }}"
         >
-          <div class="dossier-card-header">
-            <div class="dossier-card-icon"><i data-lucide="folder"></i></div>
-            <span class="badge badge-dossier-{{ dos.status }}">
-              {% if dos.status == 'afgerond' %}<i data-lucide="check" style="width:12px;height:12px;vertical-align:-1px;"></i> Afgerond{% else %}<i data-lucide="circle" style="width:10px;height:10px;vertical-align:-1px;"></i> Concept{% endif %}
-            </span>
-          </div>
-          <div class="dossier-card-name">{{ dos.naam }}</div>
-          {% if dos.omschrijving %}
-            <div class="dossier-card-desc">{{ dos.omschrijving }}</div>
-          {% endif %}
-          <div class="dossier-card-meta">
-            <span>{{ dos.invulling_count }} invulling{% if dos.invulling_count != 1 %}en{% endif %}</span>
-            <span>·</span>
-            {% if dos.jaar %}<span>{{ dos.jaar }}</span><span>·</span>{% endif %}
-            {% if dos.financieringsvorm %}<span>{{ dos.financieringsvorm }}</span>{% endif %}
-          </div>
-        </a>
+          <a href="{{ url_for('dossier_detail', dossier_id=dos.id) }}" class="dossier-card">
+            <div class="dossier-card-header">
+              <div class="dossier-card-icon"><i data-lucide="folder"></i></div>
+              <span class="badge badge-dossier-{{ dos.status }}">
+                {% if dos.status == 'afgerond' %}<i data-lucide="check" style="width:12px;height:12px;vertical-align:-1px;"></i> Afgerond{% else %}<i data-lucide="circle" style="width:10px;height:10px;vertical-align:-1px;"></i> Concept{% endif %}
+              </span>
+            </div>
+            <div class="dossier-card-name">{{ dos.naam }}</div>
+            {% if dos.omschrijving %}
+              <div class="dossier-card-desc">{{ dos.omschrijving }}</div>
+            {% endif %}
+            <div class="dossier-card-meta">
+              <span>{{ dos.invulling_count }} invulling{% if dos.invulling_count != 1 %}en{% endif %}</span>
+              <span>·</span>
+              {% if dos.jaar %}<span>{{ dos.jaar }}</span><span>·</span>{% endif %}
+              {% if dos.financieringsvorm %}<span>{{ dos.financieringsvorm }}</span>{% endif %}
+            </div>
+          </a>
+          <button
+            class="dossier-card-delete"
+            title="Dossier verwijderen"
+            onclick="bevestigVerwijderen({{ dos.id | tojson }}, {{ dos.naam | tojson }}, {{ url_for('dossier_verwijderen', dossier_id=dos.id) | tojson }})"
+          ><i data-lucide="trash-2" style="width:13px;height:13px;"></i></button>
+        </div>
       {% endfor %}
     </div>
 
@@ -128,6 +133,23 @@
       </div>
     </div>
   {% endif %}
+</div>
+
+<!-- Verwijder bevestigingsmodal -->
+<div class="verwijder-overlay" id="verwijder-overlay" style="display:none;" onclick="sluitVerwijderModal(event)">
+  <div class="verwijder-modal" role="dialog" aria-modal="true">
+    <div class="verwijder-modal-icon">
+      <i data-lucide="trash-2" style="width:20px;height:20px;"></i>
+    </div>
+    <h3>Dossier verwijderen?</h3>
+    <p id="verwijder-tekst"></p>
+    <form id="verwijder-form" method="post">
+      <div class="verwijder-modal-actions">
+        <button type="button" class="btn btn-outline" onclick="sluitVerwijderModal()">Annuleren</button>
+        <button type="submit" class="btn" style="background:#dc2626;color:#fff;border-color:#dc2626;">Verwijderen</button>
+      </div>
+    </form>
+  </div>
 </div>
 
 <style>
@@ -226,7 +248,86 @@
 .map-sub-body { display: none; padding-left: 22px; margin-top: 3px; }
 .map-sub-body.open { display: block; }
 
+/* Kaart wrapper met verwijderknop */
+.dossier-card-wrap {
+  position: relative;
+}
+.dossier-card-wrap .dossier-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.dossier-card-delete {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
+  z-index: 1;
+}
+.dossier-card-wrap:hover .dossier-card-delete { opacity: 1; }
+.dossier-card-delete:hover { background: #fee2e2; color: #dc2626; }
+
+/* Verwijder modal */
+.verwijder-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 1000;
+  display: flex; align-items: center; justify-content: center;
+}
+.verwijder-modal {
+  background: #fff;
+  border-radius: 12px;
+  padding: 28px 28px 22px;
+  max-width: 400px;
+  width: 90%;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+}
+.verwijder-modal-icon {
+  width: 40px; height: 40px;
+  background: #fee2e2;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 14px;
+  color: #dc2626;
+}
+.verwijder-modal h3 { font-size: 16px; font-weight: 600; margin: 0 0 8px; }
+.verwijder-modal p { font-size: 13px; color: var(--muted); margin: 0 0 20px; line-height: 1.5; }
+.verwijder-modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
 /* Dossier rij in mappenweergave */
+.dossier-rij-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-bottom: 2px;
+}
+.dossier-rij-wrap .dossier-rij { margin-bottom: 0; flex: 1; }
+.dossier-rij-delete {
+  flex-shrink: 0;
+  width: 26px; height: 26px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s, background 0.15s, color 0.15s;
+  margin-right: 4px;
+}
+.dossier-rij-wrap:hover .dossier-rij-delete { opacity: 1; }
+.dossier-rij-delete:hover { background: #fee2e2; color: #dc2626; }
 .dossier-rij {
   display: flex;
   align-items: center;
@@ -248,6 +349,22 @@
 
 {% block scripts %}
 <script>
+function bevestigVerwijderen(id, naam, url) {
+  document.getElementById('verwijder-tekst').textContent =
+    'Weet je zeker dat je "' + naam + '" wilt verwijderen? Alle invullingen en deellinks worden ook verwijderd. Dit kan niet ongedaan worden gemaakt.';
+  document.getElementById('verwijder-form').action = url;
+  const overlay = document.getElementById('verwijder-overlay');
+  overlay.style.display = 'flex';
+  if (window.lucide) lucide.createIcons({ nodes: [overlay] });
+}
+function sluitVerwijderModal(e) {
+  if (e && e.target !== document.getElementById('verwijder-overlay')) return;
+  document.getElementById('verwijder-overlay').style.display = 'none';
+}
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.getElementById('verwijder-overlay').style.display = 'none';
+});
+
 (function() {
 
 // ─── Data ───────────────────────────────────────────────────────────────────
@@ -262,6 +379,7 @@ const DOSSIERS = [
     status: {{ dos.status | tojson }},
     invulling_count: {{ dos.invulling_count }},
     url: {{ url_for('dossier_detail', dossier_id=dos.id) | tojson }},
+    deleteUrl: {{ url_for('dossier_verwijderen', dossier_id=dos.id) | tojson }},
   },
   {% endfor %}
 ];
@@ -315,16 +433,16 @@ function heeftFilters(f) {
 
 // ─── Kaarten weergave ────────────────────────────────────────────────────────
 function applyKaartFilters(filters) {
-  const cards = Array.from(viewKaarten.querySelectorAll('.dossier-card'));
+  const wraps = Array.from(viewKaarten.querySelectorAll('.dossier-card-wrap'));
   let zichtbaar = 0;
-  cards.forEach(card => {
-    const finVormen = (card.dataset.financiering || '').split(',').map(s => s.trim()).filter(Boolean);
+  wraps.forEach(wrap => {
+    const finVormen = (wrap.dataset.financiering || '').split(',').map(s => s.trim()).filter(Boolean);
     const match =
-      (!filters.naam   || card.dataset.naam.includes(filters.naam)) &&
-      (!filters.jaar   || card.dataset.jaar === filters.jaar) &&
+      (!filters.naam   || wrap.dataset.naam.includes(filters.naam)) &&
+      (!filters.jaar   || wrap.dataset.jaar === filters.jaar) &&
       (!filters.fin    || finVormen.includes(filters.fin)) &&
-      (!filters.status || card.dataset.status === filters.status);
-    card.style.display = match ? 'flex' : 'none';
+      (!filters.status || wrap.dataset.status === filters.status);
+    wrap.style.display = match ? '' : 'none';
     if (match) zichtbaar++;
   });
   return zichtbaar;
@@ -412,14 +530,20 @@ function bouwMappenHTML(boom, volgorde) {
         <div class="map-sub-body" id="${subId}">`;
 
       dossiersInMap.forEach(d => {
-        html += `<a href="${escHtml(d.url)}" class="dossier-rij">
-          <i data-lucide="file-text" class="dossier-rij-icon"></i>
-          <span class="dossier-rij-name">${escHtml(d.naam)}</span>
-          <span class="dossier-rij-meta">${d.invulling_count} invulling${d.invulling_count !== 1 ? 'en' : ''}</span>
-          <span class="badge badge-dossier-${escHtml(d.status)}" style="font-size:10px;padding:2px 7px;">
-            ${d.status === 'afgerond' ? 'Afgerond' : 'Concept'}
-          </span>
-        </a>`;
+        html += `<div class="dossier-rij-wrap">
+          <a href="${escHtml(d.url)}" class="dossier-rij">
+            <i data-lucide="file-text" class="dossier-rij-icon"></i>
+            <span class="dossier-rij-name">${escHtml(d.naam)}</span>
+            <span class="dossier-rij-meta">${d.invulling_count} invulling${d.invulling_count !== 1 ? 'en' : ''}</span>
+            <span class="badge badge-dossier-${escHtml(d.status)}" style="font-size:10px;padding:2px 7px;">
+              ${d.status === 'afgerond' ? 'Afgerond' : 'Concept'}
+            </span>
+          </a>
+          <button class="dossier-rij-delete" title="Verwijderen"
+            onclick="bevestigVerwijderen(${JSON.stringify(d.id)}, ${JSON.stringify(d.naam)}, ${JSON.stringify(d.deleteUrl)})">
+            <i data-lucide="trash-2" style="width:13px;height:13px;"></i>
+          </button>
+        </div>`;
       });
 
       html += `</div></div>`;

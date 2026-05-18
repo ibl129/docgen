@@ -1481,6 +1481,21 @@ def dossier_bewerken(dossier_id):
     return redirect(url_for("dossier_detail", dossier_id=dossier_id))
 
 
+@app.route("/dossier/<dossier_id>/verwijderen", methods=["POST"])
+@login_required
+def dossier_verwijderen(dossier_id):
+    try:
+        # Verwijder gekoppelde tokens en invullingen eerst (foreign key)
+        supabase.table("tokens").delete().eq("dossier_id", dossier_id).execute()
+        supabase.table("invullingen").delete().eq("dossier_id", dossier_id).execute()
+        supabase.table("dossiers").delete().eq("id", dossier_id).execute()
+        flash("Dossier verwijderd.", "success")
+    except Exception as e:
+        flash(f"Fout bij verwijderen: {e}", "error")
+        return redirect(url_for("dossier_detail", dossier_id=dossier_id))
+    return redirect(url_for("dossiers_overzicht"))
+
+
 @app.route("/dossier/<dossier_id>/invulling/<inv_id>/heropenen", methods=["POST"])
 @login_required
 def dossier_invulling_heropenen(dossier_id, inv_id):
