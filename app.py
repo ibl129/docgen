@@ -788,8 +788,8 @@ def sjablonen():
         templates = templates_res.data or []
     except Exception:
         templates = []
-    fin_vormen = _get_financieringsvormen()
-    return render_template("sjablonen.html", cfg=cfg, templates=templates, system_variables=SYSTEM_VARIABLES, fin_vormen=fin_vormen, fin_slug=_fin_slug)
+    fin_vormen = [{"naam": n, "slug": _fin_slug(n)} for n in _get_financieringsvormen()]
+    return render_template("sjablonen.html", cfg=cfg, templates=templates, system_variables=SYSTEM_VARIABLES, fin_vormen=fin_vormen)
 
 
 @app.route("/admin")
@@ -812,7 +812,7 @@ def admin():
     except Exception:
         token_stats = {"total": 0, "sealed": 0, "pending": 0}
 
-    fin_vormen = _get_financieringsvormen()
+    fin_vormen = [{"naam": n, "slug": _fin_slug(n)} for n in _get_financieringsvormen()]
     return render_template(
         "admin.html",
         cfg=cfg,
@@ -820,7 +820,6 @@ def admin():
         token_stats=token_stats,
         system_variables=SYSTEM_VARIABLES,
         fin_vormen=fin_vormen,
-        fin_slug=_fin_slug,
     )
 
 
