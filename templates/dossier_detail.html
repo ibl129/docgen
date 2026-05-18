@@ -242,12 +242,29 @@
                       onclick="copyDossierUrl('{{ tok.id }}', '{{ tok_url }}')"
                     ><i data-lucide="clipboard" style="width:14px;height:14px;"></i></button>
                   </div>
-                  <form method="post" action="{{ url_for('dossier_token_intrekken', token_id=tok.id) }}" style="margin-top:4px;">
+                  <div style="display:flex;gap:6px;margin-top:4px;">
+                    <form method="post" action="{{ url_for('dossier_token_intrekken', token_id=tok.id) }}" style="margin:0;">
+                      <button
+                        type="submit"
+                        class="btn btn-xs btn-danger-outline"
+                        onclick="return confirm('Deellink intrekken? De externe partij verliest toegang.')"
+                      >Intrekken</button>
+                    </form>
+                    <form method="post" action="{{ url_for('dossier_token_verwijderen', token_id=tok.id) }}" style="margin:0;">
+                      <button
+                        type="submit"
+                        class="btn btn-xs btn-danger-outline"
+                        onclick="return confirm('Deellink definitief verwijderen?')"
+                      ><i data-lucide="trash-2" style="width:12px;height:12px;vertical-align:-1px;margin-right:3px;"></i>Verwijderen</button>
+                    </form>
+                  </div>
+                {% else %}
+                  <form method="post" action="{{ url_for('dossier_token_verwijderen', token_id=tok.id) }}" style="margin-top:4px;">
                     <button
                       type="submit"
                       class="btn btn-xs btn-danger-outline"
-                      onclick="return confirm('Deellink intrekken? De externe partij verliest toegang.')"
-                    >Intrekken</button>
+                      onclick="return confirm('Ingetrokken deellink definitief verwijderen?')"
+                    ><i data-lucide="trash-2" style="width:12px;height:12px;vertical-align:-1px;margin-right:3px;"></i>Verwijderen</button>
                   </form>
                 {% endif %}
               </div>

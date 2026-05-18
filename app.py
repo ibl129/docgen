@@ -1631,6 +1631,21 @@ def dossier_token_intrekken(token_id):
     return redirect(url_for("dossiers_overzicht"))
 
 
+@app.route("/dossier_token/<token_id>/verwijderen", methods=["POST"])
+@login_required
+def dossier_token_verwijderen(token_id):
+    try:
+        tok = supabase.table("dossier_tokens").select("dossier_id").eq("id", token_id).single().execute()
+        dossier_id = tok.data["dossier_id"] if tok.data else None
+        supabase.table("dossier_tokens").delete().eq("id", token_id).execute()
+        flash("Deellink verwijderd.", "success")
+        if dossier_id:
+            return redirect(url_for("dossier_detail", dossier_id=dossier_id))
+    except Exception as e:
+        flash(f"Fout bij verwijderen: {e}", "error")
+    return redirect(url_for("dossiers_overzicht"))
+
+
 # ---------------------------------------------------------------------------
 # Extern dossier routes (geen login)
 # ---------------------------------------------------------------------------
