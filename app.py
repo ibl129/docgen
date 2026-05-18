@@ -81,7 +81,7 @@ def get_app_footer() -> dict:
 
 
 def get_ongelezen_inzendingen_count(user_id: str) -> int:
-    """Aantal extern-zichtbare invullingen bijgewerkt na de laatste keer dat de gebruiker de inzendingen-pagina bezocht."""
+    """Aantal door externe partij verzonden invullingen na de laatste keer dat de gebruiker de inzendingen-pagina bezocht."""
     try:
         gezien_res = supabase.table("inzendingen_gelezen").select("gezien_op").eq("user_id", user_id).single().execute()
         gezien_op = gezien_res.data["gezien_op"] if gezien_res.data else None
@@ -89,22 +89,13 @@ def get_ongelezen_inzendingen_count(user_id: str) -> int:
         gezien_op = None
 
     try:
-        q = supabase.table("invullingen").select("id,updated_at,waarden").neq("extern_toegang", "verborgen")
+        q = supabase.table("invullingen").select("id,updated_at").eq("extern_status", "verzonden")
         if gezien_op:
             q = q.gt("updated_at", gezien_op)
         inv_res = q.execute()
-        rows = inv_res.data or []
+        return len(inv_res.data or [])
     except Exception:
         return 0
-
-    count = 0
-    for inv in rows:
-        waarden = inv.get("waarden") or {}
-        if isinstance(waarden, str):
-            waarden = json.loads(waarden)
-        if any(str(v).strip() for v in waarden.values()):
-            count += 1
-    return count
 
 
 # ---------------------------------------------------------------------------
