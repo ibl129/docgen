@@ -1200,6 +1200,8 @@ tbody tr:hover { background: #fafbfc; }
 .dossier-sidebar {
   position: sticky;
   top: 76px;
+  max-height: calc(100vh - 96px);
+  overflow-y: auto;
 }
 
 .share-panel {
