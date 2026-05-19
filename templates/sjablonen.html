@@ -93,6 +93,43 @@
     </div>
   </div>
 
+  <!-- Conditionele blokken -->
+  <div class="card" style="margin-top:24px;">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+      <i data-lucide="git-branch" style="width:16px;height:16px;color:var(--primary);"></i>
+      <h2 style="font-size:15px;font-weight:600;margin:0;">Conditionele blokken</h2>
+    </div>
+    <p style="color:var(--muted);font-size:13px;margin:0 0 16px;">
+      Gebruik <code style="font-size:12px;">{{"{{"}}#if veld{{"}}"}}</code> om een alinea of sectie alleen op te nemen als het opgegeven veld een waarde heeft. Werkt met elk invulveld én met systeemvariabelen.
+    </p>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th style="width:40%;">Syntax in Word</th><th>Betekenis</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code style="background:var(--bg);padding:2px 7px;border-radius:6px;font-size:12px;color:var(--primary);">{{"{{"}}#if veldnaam{{"}}"}}</code></td>
+            <td style="color:var(--muted);font-size:13px;">Begin van conditioneel blok — alles hierna wordt alleen opgenomen als <em>veldnaam</em> is ingevuld.</td>
+          </tr>
+          <tr>
+            <td><code style="background:var(--bg);padding:2px 7px;border-radius:6px;font-size:12px;color:var(--primary);">{{"{{"}}{{"/if"}}{{"}}"}}</code></td>
+            <td style="color:var(--muted);font-size:13px;">Einde van het conditionele blok.</td>
+          </tr>
+          <tr>
+            <td style="font-size:12px;color:var(--muted);">Voorbeeld:</td>
+            <td style="font-size:12px;color:var(--muted);">
+              <code>{{"{{"}}#if bijzonderheden{{"}}"}}</code> Bijzonderheden: <code>{{"{{"}}bijzonderheden{{"}}"}}</code> <code>{{"{{"}}{{"/if"}}{{"}}"}}</code>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="color:var(--muted);font-size:12px;margin:12px 0 0;">
+      Zet <code style="font-size:11px;">{{"{{"}}#if …{{"}}"}}</code> en <code style="font-size:11px;">{{"{{"}}{{"/if"}}{{"}}"}}</code> elk op een eigen regel in Word om te voorkomen dat de tags-tekst zelf in het document verschijnt.
+    </p>
+  </div>
+
   <!-- Financieringsvormen als systeemvariabelen -->
   <div class="card" style="margin-top:24px;">
     <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
