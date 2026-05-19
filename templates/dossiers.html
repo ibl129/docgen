@@ -100,7 +100,9 @@
           <button
             class="dossier-card-delete"
             title="Dossier verwijderen"
-            onclick="bevestigVerwijderen({{ dos.id | tojson }}, {{ dos.naam | tojson }}, {{ url_for('dossier_verwijderen', dossier_id=dos.id) | tojson }})"
+            data-id="{{ dos.id }}"
+            data-naam="{{ dos.naam | e }}"
+            data-url="{{ url_for('dossier_verwijderen', dossier_id=dos.id) }}"
           ><i data-lucide="trash-2" style="width:13px;height:13px;"></i></button>
         </div>
       {% endfor %}
@@ -368,6 +370,13 @@ function sluitVerwijderModal(e) {
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') document.getElementById('verwijder-overlay').style.display = 'none';
 });
+document.addEventListener('click', e => {
+  const btn = e.target.closest('.dossier-card-delete, .dossier-rij-delete');
+  if (!btn) return;
+  e.preventDefault();
+  e.stopPropagation();
+  bevestigVerwijderen(btn.dataset.id, btn.dataset.naam, btn.dataset.url);
+});
 
 (function() {
 
@@ -544,7 +553,7 @@ function bouwMappenHTML(boom, volgorde) {
             </span>
           </a>
           <button class="dossier-rij-delete" title="Verwijderen"
-            onclick="bevestigVerwijderen(${JSON.stringify(d.id)}, ${JSON.stringify(d.naam)}, ${JSON.stringify(d.deleteUrl)})">
+            data-id="${escHtml(String(d.id))}" data-naam="${escHtml(d.naam)}" data-url="${escHtml(d.deleteUrl)}">
             <i data-lucide="trash-2" style="width:13px;height:13px;"></i>
           </button>
         </div>`;
