@@ -336,10 +336,19 @@ def _insert_paragraph_after(ref_para, text: str, source_para, remove_spacing: bo
 
 
 def _strip_tag_from_para(p_elem, pattern):
-    """Verwijder alle tekst die matcht met pattern uit de runs van een alinea-element."""
-    for t_elem in p_elem.iter(qn('w:t')):
-        if t_elem.text and pattern.search(t_elem.text):
-            t_elem.text = pattern.sub('', t_elem.text)
+    """Verwijder alle tekst die matcht met pattern uit de runs van een alinea-element.
+    Werkt ook als de tag gesplitst is over meerdere w:t elementen."""
+    t_elems = list(p_elem.iter(qn('w:t')))
+    full = "".join(t.text or "" for t in t_elems)
+    if not pattern.search(full):
+        return
+    new_full = pattern.sub('', full)
+    # Schrijf gecombineerde tekst naar het eerste t-element, leeg de rest
+    if t_elems:
+        t_elems[0].text = new_full
+        t_elems[0].set('{http://www.w3.org/XML/1998/namespace}space', 'preserve')
+        for t in t_elems[1:]:
+            t.text = ""
 
 
 def _process_conditionals(paragraphs_parent, values: dict):
