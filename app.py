@@ -1526,7 +1526,7 @@ def dossier_bewerken(dossier_id):
 def dossier_verwijderen(dossier_id):
     try:
         # Verwijder gekoppelde tokens en invullingen eerst (foreign key)
-        supabase.table("tokens").delete().eq("dossier_id", dossier_id).execute()
+        supabase.table("dossier_tokens").delete().eq("dossier_id", dossier_id).execute()
         supabase.table("invullingen").delete().eq("dossier_id", dossier_id).execute()
         supabase.table("dossiers").delete().eq("id", dossier_id).execute()
         flash("Dossier verwijderd.", "success")

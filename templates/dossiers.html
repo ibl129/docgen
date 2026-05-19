@@ -376,7 +376,7 @@ document.addEventListener('click', e => {
   e.preventDefault();
   e.stopPropagation();
   bevestigVerwijderen(btn.dataset.id, btn.dataset.naam, btn.dataset.url);
-});
+}, true);
 
 (function() {
 
