@@ -218,6 +218,17 @@
           title="Veld verwijderen"
         ><i data-lucide="x" style="width:14px;height:14px;"></i></button>
       </div>
+      <div style="grid-column:1/-1;margin-top:-4px;">
+        <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted);display:block;margin-bottom:4px;">Toelichting voor invuller <span style="font-weight:400;">(optioneel)</span></label>
+        <input
+          type="text"
+          class="form-control"
+          style="font-size:13px;padding:8px 10px;"
+          value="${escHtml(field.hint || '')}"
+          placeholder="bv. Dat Opdrachtnemer specifieke kennis heeft op het gebied van ..."
+          oninput="updateField(${idx}, 'hint', this.value)"
+        >
+      </div>
       ${field.type === 'date' ? `
         <div style="grid-column:1/-1;margin-top:-4px;">
           <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted);display:block;margin-bottom:4px;">Datumnotatie in document</label>
@@ -282,7 +293,7 @@
   }
 
   document.getElementById('add-field-btn').addEventListener('click', () => {
-    fields.push({ name: '', label: '', type: 'text', required: false, options: '', eigenaar: '' });
+    fields.push({ name: '', label: '', type: 'text', required: false, options: '', eigenaar: '', hint: '' });
     render();
     // Focus the last name input
     setTimeout(() => {

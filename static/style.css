@@ -388,6 +388,17 @@ img { max-width: 100%; display: block; }
 
 .form-control::placeholder { color: #b0b7c3; }
 
+.field-hint {
+  margin-top: 5px;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+  padding: 6px 10px;
+  background: var(--surface-2, #f3f4f6);
+  border-left: 3px solid var(--border, #e5e7eb);
+  border-radius: 0 4px 4px 0;
+}
+
 textarea.form-control {
   resize: vertical;
   min-height: 80px;

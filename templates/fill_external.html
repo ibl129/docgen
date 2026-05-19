@@ -139,6 +139,9 @@
                     placeholder="{{ field.label or field.name }}"
                   >
                 {% endif %}
+                {% if field.hint %}
+                  <div class="field-hint">{{ field.hint }}</div>
+                {% endif %}
               </div>
             {% endfor %}
 
