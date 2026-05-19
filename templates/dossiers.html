@@ -273,10 +273,14 @@
   justify-content: center;
   opacity: 0;
   transition: opacity 0.15s, background 0.15s, color 0.15s;
-  z-index: 1;
+  z-index: 2;
 }
 .dossier-card-wrap:hover .dossier-card-delete { opacity: 1; }
 .dossier-card-delete:hover { background: #fee2e2; color: #dc2626; }
+@media (hover: none) {
+  .dossier-card-delete { opacity: 0.45; }
+  .dossier-rij-delete { opacity: 0.45; }
+}
 
 /* Verwijder modal */
 .verwijder-overlay {

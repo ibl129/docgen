@@ -1118,6 +1118,8 @@ tbody tr:hover { background: #fafbfc; }
   cursor: pointer;
   text-decoration: none;
   color: inherit;
+  position: relative;
+  z-index: 0;
 }
 
 .dossier-card:hover {
