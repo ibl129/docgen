@@ -142,19 +142,28 @@ def _replace_in_paragraph(para, values: dict):
         placeholder = f"{{{{{key}}}}}"
         if placeholder not in para.text:
             continue
-        # Fast path: placeholder fits in a single run
+        # Fast path: placeholder fits in a single run — opmaak van die run blijft behouden
         for run in para.runs:
             if placeholder in run.text:
                 run.text = run.text.replace(placeholder, str(val) if val is not None else "")
         if placeholder not in para.text:
             continue
-        # Slow path: placeholder is split across runs — merge all run text, replace, rewrite first run
+        # Slow path: placeholder is gesplitst over meerdere runs.
+        # Zoek de eerste run die een deel van de placeholder bevat en gebruik die als drager
+        # zodat diens opmaak (bold/italic/underline) bewaard blijft.
         full_text = "".join(r.text for r in para.runs)
         if placeholder not in full_text:
             continue
-        new_text = full_text.replace(placeholder, str(val) if val is not None else "")
+        val_str = str(val) if val is not None else ""
+        new_text = full_text.replace(placeholder, val_str)
+        # Vind de eerste run die {{ of een deel van de placeholder bevat
+        carrier = 0
         for i, run in enumerate(para.runs):
-            run.text = new_text if i == 0 else ""
+            if run.text and ('{{' in run.text or key in run.text):
+                carrier = i
+                break
+        for i, run in enumerate(para.runs):
+            run.text = new_text if i == carrier else ""
 
 
 SYSTEM_VARIABLES = [
@@ -326,15 +335,25 @@ def _insert_paragraph_after(ref_para, text: str, source_para, remove_spacing: bo
     return DocxParagraph(new_p, source_para._element.getparent())
 
 
+def _strip_tag_from_para(p_elem, pattern):
+    """Verwijder alle tekst die matcht met pattern uit de runs van een alinea-element."""
+    for t_elem in p_elem.iter(qn('w:t')):
+        if t_elem.text and pattern.search(t_elem.text):
+            t_elem.text = pattern.sub('', t_elem.text)
+
+
 def _process_conditionals(paragraphs_parent, values: dict):
     """
-    Verwerk {{#if veld}}, {{#ifnot veld}}, {{/if}} / {{/ifnot}} blokken.
-    Alinea's die in een falende conditie vallen worden verwijderd.
-    Werkt op de directe kinderen van een body/cell-element.
-    """
-    from docx.text.paragraph import Paragraph as DocxPara
+    Verwerk {{#if veld}}, {{#ifnot veld}}, {{/if}} blokken.
 
-    # Verzamel alle paragrafen als lijst van (element, tekst)
+    Ondersteunt twee patronen:
+    1. Tag + inhoud + sluitingstag op dezelfde alinea:
+       {{#if veld}}tekst{{/if}}  →  alinea bewaren of verwijderen als geheel
+    2. Openingstag op alinea A, sluitingstag op (of na) alinea B:
+       {{#if veld}}          ← alinea A: altijd verwijderen
+       ...tussenliggende alineas...
+       tekst{{/if}}          ← alinea B: sluitingstag strippen, alinea bewaren/verwijderen
+    """
     body = paragraphs_parent
     paras = [child for child in body if child.tag == qn('w:p')]
 
@@ -348,31 +367,49 @@ def _process_conditionals(paragraphs_parent, values: dict):
         m_ifnot = _IFNOT_RE.search(text)
 
         if m_if or m_ifnot:
-            field   = (m_if or m_ifnot).group(1)
-            is_if   = bool(m_if)
-            filled  = bool(values.get(field, "").strip())
-            keep    = filled if is_if else not filled
+            field  = (m_if or m_ifnot).group(1)
+            is_if  = bool(m_if)
+            filled = bool(values.get(field, "").strip())
+            keep   = filled if is_if else not filled
 
-            # Markeer de openingsregel zelf voor verwijdering
-            to_delete.add(id(p))
-            i += 1
-
-            # Zoek de bijbehorende {{/if}} of {{/ifnot}}
-            depth = 1
-            while i < len(paras) and depth > 0:
-                inner = paras[i]
-                inner_text = "".join(t.text or "" for t in inner.iter(qn('w:t')))
-                if _IF_RE.search(inner_text) or _IFNOT_RE.search(inner_text):
-                    depth += 1
-                if _ENDIF_RE.search(inner_text):
-                    depth -= 1
-                    if depth == 0:
-                        to_delete.add(id(inner))  # sluitingstag verwijderen
-                        i += 1
-                        break
-                if not keep:
-                    to_delete.add(id(inner))
+            # Controleer of openings- én sluitingstag op dezelfde alinea staan
+            open_tag_re = m_if.re if m_if else m_ifnot.re
+            if _ENDIF_RE.search(text):
+                # Patroon 1: alles op één alinea — strip beide tags of verwijder alinea
+                if keep:
+                    _strip_tag_from_para(p, open_tag_re)
+                    _strip_tag_from_para(p, _ENDIF_RE)
+                else:
+                    to_delete.add(id(p))
                 i += 1
+            else:
+                # Patroon 2: openingstag-alinea altijd verwijderen
+                to_delete.add(id(p))
+                i += 1
+
+                depth = 1
+                while i < len(paras) and depth > 0:
+                    inner = paras[i]
+                    inner_text = "".join(t.text or "" for t in inner.iter(qn('w:t')))
+
+                    has_open  = bool(_IF_RE.search(inner_text) or _IFNOT_RE.search(inner_text))
+                    has_close = bool(_ENDIF_RE.search(inner_text))
+
+                    if has_open:
+                        depth += 1
+                    if has_close:
+                        depth -= 1
+                        if depth == 0:
+                            # Sluitingstag: strip de tag, bewaar of verwijder de alinea
+                            if keep:
+                                _strip_tag_from_para(inner, _ENDIF_RE)
+                            else:
+                                to_delete.add(id(inner))
+                            i += 1
+                            break
+                    if not keep and not has_close:
+                        to_delete.add(id(inner))
+                    i += 1
         else:
             i += 1
 
