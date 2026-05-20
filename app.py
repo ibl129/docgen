@@ -29,6 +29,10 @@ SUPABASE_BUCKET = os.environ.get("SUPABASE_BUCKET", "docgen-files")
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 supabase_admin: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY) if SUPABASE_SERVICE_KEY else supabase
 
+# Alle database-queries via de service_role client zodat RLS-policies
+# op alle tabellen ingeschakeld kunnen worden zonder toegangsproblemen.
+db = supabase_admin
+
 # ---------------------------------------------------------------------------
 # Config helpers
 # ---------------------------------------------------------------------------
@@ -41,7 +45,7 @@ def get_config() -> dict:
         "logo_url": "",
     }
     try:
-        rows = supabase.table("config").select("key,value").execute()
+        rows = db.table("config").select("key,value").execute()
         if rows.data:
             for row in rows.data:
                 defaults[row["key"]] = row["value"]
@@ -51,7 +55,7 @@ def get_config() -> dict:
 
 
 def set_config(key: str, value: str) -> None:
-    supabase.table("config").upsert({"key": key, "value": value}).execute()
+    db.table("config").upsert({"key": key, "value": value}).execute()
 
 
 _footer_cache: dict = {"data": None, "ts": 0}
@@ -83,13 +87,13 @@ def get_app_footer() -> dict:
 def get_ongelezen_inzendingen_count(user_id: str) -> int:
     """Aantal door externe partij verzonden invullingen na de laatste keer dat de gebruiker de inzendingen-pagina bezocht."""
     try:
-        gezien_res = supabase.table("inzendingen_gelezen").select("gezien_op").eq("user_id", user_id).single().execute()
+        gezien_res = db.table("inzendingen_gelezen").select("gezien_op").eq("user_id", user_id).single().execute()
         gezien_op = gezien_res.data["gezien_op"] if gezien_res.data else None
     except Exception:
         gezien_op = None
 
     try:
-        q = supabase.table("invullingen").select("id,updated_at").eq("extern_status", "verzonden")
+        q = db.table("invullingen").select("id,updated_at").eq("extern_status", "verzonden")
         if gezien_op:
             q = q.gt("updated_at", gezien_op)
         inv_res = q.execute()
@@ -551,7 +555,7 @@ def index():
 def template_detail(template_id):
     cfg = get_config()
     try:
-        tmpl = supabase.table("templates").select("*").eq("id", template_id).single().execute()
+        tmpl = db.table("templates").select("*").eq("id", template_id).single().execute()
     except Exception:
         abort(404)
 
@@ -564,7 +568,7 @@ def template_detail(template_id):
         fields = json.loads(fields)
 
     try:
-        tokens_res = supabase.table("tokens").select("*").eq("template_id", template_id).order("created_at", desc=True).execute()
+        tokens_res = db.table("tokens").select("*").eq("template_id", template_id).order("created_at", desc=True).execute()
         tokens = tokens_res.data or []
     except Exception:
         tokens = []
@@ -582,7 +586,7 @@ def template_detail(template_id):
 @login_required
 def template_download(template_id):
     try:
-        tmpl = supabase.table("templates").select("*").eq("id", template_id).single().execute()
+        tmpl = db.table("templates").select("*").eq("id", template_id).single().execute()
     except Exception:
         abort(404)
 
@@ -630,7 +634,7 @@ def template_download(template_id):
 def token_create(template_id):
     description = request.form.get("description", "").strip() or "Extern formulier"
     try:
-        supabase.table("tokens").insert({
+        db.table("tokens").insert({
             "template_id": template_id,
             "description": description,
             "status": "pending",
@@ -646,8 +650,8 @@ def token_create(template_id):
 def token_unseal(token_id):
     try:
         # Fetch token to get template_id for redirect
-        tok = supabase.table("tokens").select("template_id").eq("id", token_id).single().execute()
-        supabase.table("tokens").update({"status": "pending"}).eq("id", token_id).execute()
+        tok = db.table("tokens").select("template_id").eq("id", token_id).single().execute()
+        db.table("tokens").update({"status": "pending"}).eq("id", token_id).execute()
         flash("Token heropend — formulier kan opnieuw worden ingevuld.", "success")
         if tok.data:
             return redirect(url_for("template_detail", template_id=tok.data["template_id"]))
@@ -660,7 +664,7 @@ def token_unseal(token_id):
 @login_required
 def token_download(token_id):
     try:
-        tok = supabase.table("tokens").select("*").eq("id", token_id).single().execute()
+        tok = db.table("tokens").select("*").eq("id", token_id).single().execute()
     except Exception:
         abort(404)
 
@@ -673,7 +677,7 @@ def token_download(token_id):
         return redirect(url_for("template_detail", template_id=token["template_id"]))
 
     try:
-        sub = supabase.table("submissions").select("*").eq("token_id", token_id).order("submitted_at", desc=True).limit(1).single().execute()
+        sub = db.table("submissions").select("*").eq("token_id", token_id).order("submitted_at", desc=True).limit(1).single().execute()
     except Exception:
         flash("Geen inzending gevonden voor dit token.", "error")
         return redirect(url_for("template_detail", template_id=token["template_id"]))
@@ -687,7 +691,7 @@ def token_download(token_id):
         values = json.loads(values)
 
     try:
-        tmpl = supabase.table("templates").select("*").eq("id", token["template_id"]).single().execute()
+        tmpl = db.table("templates").select("*").eq("id", token["template_id"]).single().execute()
     except Exception:
         abort(404)
 
@@ -725,7 +729,7 @@ def token_download(token_id):
 def fill_external(token_id):
     cfg = get_config()
     try:
-        tok = supabase.table("tokens").select("*").eq("id", token_id).single().execute()
+        tok = db.table("tokens").select("*").eq("id", token_id).single().execute()
     except Exception:
         abort(404)
 
@@ -738,7 +742,7 @@ def fill_external(token_id):
         return render_template("fill_thanks.html", cfg=cfg, already_sealed=True)
 
     try:
-        tmpl = supabase.table("templates").select("*").eq("id", token["template_id"]).single().execute()
+        tmpl = db.table("templates").select("*").eq("id", token["template_id"]).single().execute()
     except Exception:
         abort(404)
 
@@ -773,11 +777,11 @@ def fill_external(token_id):
             )
 
         try:
-            supabase.table("submissions").insert({
+            db.table("submissions").insert({
                 "token_id": token_id,
                 "values": values,
             }).execute()
-            supabase.table("tokens").update({"status": "sealed"}).eq("id", token_id).execute()
+            db.table("tokens").update({"status": "sealed"}).eq("id", token_id).execute()
         except Exception as e:
             flash(f"Fout bij opslaan: {e}", "error")
             return render_template(
@@ -805,7 +809,7 @@ def fill_external(token_id):
 def fill_thanks(token_id):
     cfg = get_config()
     try:
-        tok = supabase.table("tokens").select("status").eq("id", token_id).single().execute()
+        tok = db.table("tokens").select("status").eq("id", token_id).single().execute()
         already_sealed = tok.data and tok.data.get("status") == "sealed"
     except Exception:
         already_sealed = True
@@ -821,7 +825,7 @@ def fill_thanks(token_id):
 def sjablonen():
     cfg = get_config()
     try:
-        templates_res = supabase.table("templates").select("id,name,created_at").order("created_at", desc=True).execute()
+        templates_res = db.table("templates").select("id,name,created_at").order("created_at", desc=True).execute()
         templates = templates_res.data or []
     except Exception:
         templates = []
@@ -834,13 +838,13 @@ def sjablonen():
 def admin():
     cfg = get_config()
     try:
-        templates_res = supabase.table("templates").select("id,name,created_at").order("created_at", desc=True).execute()
+        templates_res = db.table("templates").select("id,name,created_at").order("created_at", desc=True).execute()
         templates = templates_res.data or []
     except Exception:
         templates = []
 
     try:
-        tokens_res = supabase.table("tokens").select("id,status").execute()
+        tokens_res = db.table("tokens").select("id,status").execute()
         token_stats = {
             "total": len(tokens_res.data or []),
             "sealed": sum(1 for t in (tokens_res.data or []) if t["status"] == "sealed"),
@@ -941,7 +945,7 @@ def admin_template_new():
             return render_template("admin_template_edit.html", cfg=cfg, template=None, mode="new")
 
         try:
-            supabase.table("templates").insert({
+            db.table("templates").insert({
                 "name": name,
                 "description": description,
                 "docx_path": storage_path,
@@ -960,7 +964,7 @@ def admin_template_new():
 def admin_template_edit(template_id):
     cfg = get_config()
     try:
-        tmpl = supabase.table("templates").select("*").eq("id", template_id).single().execute()
+        tmpl = db.table("templates").select("*").eq("id", template_id).single().execute()
     except Exception:
         abort(404)
 
@@ -1014,7 +1018,7 @@ def admin_template_edit(template_id):
                 return render_template("admin_template_edit.html", cfg=cfg, template=template, fields=fields, mode="edit")
 
         try:
-            supabase.table("templates").update(update_data).eq("id", template_id).execute()
+            db.table("templates").update(update_data).eq("id", template_id).execute()
             flash("Sjabloon bijgewerkt.", "success")
             return redirect(url_for("admin"))
         except Exception as e:
@@ -1027,13 +1031,13 @@ def admin_template_edit(template_id):
 @login_required
 def admin_template_delete(template_id):
     try:
-        tmpl = supabase.table("templates").select("docx_path").eq("id", template_id).single().execute()
+        tmpl = db.table("templates").select("docx_path").eq("id", template_id).single().execute()
         if tmpl.data:
             try:
                 supabase.storage.from_(SUPABASE_BUCKET).remove([tmpl.data["docx_path"]])
             except Exception:
                 pass
-        supabase.table("templates").delete().eq("id", template_id).execute()
+        db.table("templates").delete().eq("id", template_id).execute()
         flash("Sjabloon verwijderd.", "success")
     except Exception as e:
         flash(f"Fout bij verwijderen: {e}", "error")
@@ -1097,7 +1101,7 @@ def admin_config():
             naam = request.form.get("fin_naam", "").strip()
             if naam:
                 try:
-                    supabase.table("financieringsvormen").insert({"naam": naam}).execute()
+                    db.table("financieringsvormen").insert({"naam": naam}).execute()
                     flash("Financieringsvorm toegevoegd.", "success")
                 except Exception as e:
                     flash(f"Fout: {e}", "error")
@@ -1110,7 +1114,7 @@ def admin_config():
             naam = request.form.get("fin_naam", "").strip()
             if fin_id and naam:
                 try:
-                    supabase.table("financieringsvormen").update({"naam": naam}).eq("id", fin_id).execute()
+                    db.table("financieringsvormen").update({"naam": naam}).eq("id", fin_id).execute()
                     flash("Financieringsvorm bijgewerkt.", "success")
                 except Exception as e:
                     flash(f"Fout: {e}", "error")
@@ -1120,7 +1124,7 @@ def admin_config():
             fin_id = request.form.get("fin_id")
             if fin_id:
                 try:
-                    supabase.table("financieringsvormen").delete().eq("id", fin_id).execute()
+                    db.table("financieringsvormen").delete().eq("id", fin_id).execute()
                     flash("Financieringsvorm verwijderd.", "success")
                 except Exception as e:
                     flash(f"Fout: {e}", "error")
@@ -1131,7 +1135,7 @@ def admin_config():
             beschrijving = request.form.get("dt_beschrijving", "").strip()
             if naam:
                 try:
-                    supabase.table("dossier_types").insert({"naam": naam, "beschrijving": beschrijving or None}).execute()
+                    db.table("dossier_types").insert({"naam": naam, "beschrijving": beschrijving or None}).execute()
                     flash("Dossiertype toegevoegd.", "success")
                 except Exception as e:
                     flash(f"Fout: {e}", "error")
@@ -1145,7 +1149,7 @@ def admin_config():
             beschrijving = request.form.get("dt_beschrijving", "").strip()
             if dt_id and naam:
                 try:
-                    supabase.table("dossier_types").update({"naam": naam, "beschrijving": beschrijving or None}).eq("id", dt_id).execute()
+                    db.table("dossier_types").update({"naam": naam, "beschrijving": beschrijving or None}).eq("id", dt_id).execute()
                     flash("Dossiertype bijgewerkt.", "success")
                 except Exception as e:
                     flash(f"Fout: {e}", "error")
@@ -1155,7 +1159,7 @@ def admin_config():
             dt_id = request.form.get("dt_id")
             if dt_id:
                 try:
-                    supabase.table("dossier_types").delete().eq("id", dt_id).execute()
+                    db.table("dossier_types").delete().eq("id", dt_id).execute()
                     flash("Dossiertype verwijderd.", "success")
                 except Exception as e:
                     flash(f"Fout: {e}", "error")
@@ -1174,7 +1178,7 @@ def admin_config():
         users = []
 
     try:
-        fin_res = supabase.table("financieringsvormen").select("*").order("naam").execute()
+        fin_res = db.table("financieringsvormen").select("*").order("naam").execute()
         financieringsvormen = fin_res.data or []
         for f in financieringsvormen:
             f["slug"] = _fin_slug(f["naam"])
@@ -1196,7 +1200,7 @@ def admin_config():
 def dossiers_overzicht():
     cfg = get_config()
     try:
-        dos_res = supabase.table("dossiers").select("*").order("created_at", desc=True).execute()
+        dos_res = db.table("dossiers").select("*").order("created_at", desc=True).execute()
         dossier_list = dos_res.data or []
     except Exception as e:
         flash(f"Fout bij ophalen dossiers: {e}", "error")
@@ -1205,7 +1209,7 @@ def dossiers_overzicht():
     # Enrich with invulling count
     for dos in dossier_list:
         try:
-            cnt_res = supabase.table("invullingen").select("id").eq("dossier_id", dos["id"]).execute()
+            cnt_res = db.table("invullingen").select("id").eq("dossier_id", dos["id"]).execute()
             dos["invulling_count"] = len(cnt_res.data or [])
         except Exception:
             dos["invulling_count"] = 0
@@ -1214,7 +1218,7 @@ def dossiers_overzicht():
     user_id = session.get("user_id")
     view_mode = "kaarten"
     try:
-        pref_res = supabase.table("user_preferences").select("preferences").eq("user_id", user_id).execute()
+        pref_res = db.table("user_preferences").select("preferences").eq("user_id", user_id).execute()
         if pref_res.data:
             view_mode = pref_res.data[0]["preferences"].get("dossiers_view", "kaarten")
     except Exception:
@@ -1226,7 +1230,7 @@ def dossiers_overzicht():
 def _get_dossier_types() -> list:
     """Geeft lijst van {id, naam, beschrijving} dossier-types terug, of [] als geen geconfigureerd."""
     try:
-        res = supabase.table("dossier_types").select("id,naam,beschrijving").order("naam").execute()
+        res = db.table("dossier_types").select("id,naam,beschrijving").order("naam").execute()
         return res.data or []
     except Exception:
         return []
@@ -1242,7 +1246,7 @@ def _fin_slug(naam: str) -> str:
 
 def _get_financieringsvormen() -> list:
     try:
-        res = supabase.table("financieringsvormen").select("naam").order("naam").execute()
+        res = db.table("financieringsvormen").select("naam").order("naam").execute()
         return [r["naam"] for r in (res.data or [])]
     except Exception:
         return ["Zvw", "Wlz", "Wmo", "Jeugdwet", "Overig"]
@@ -1253,7 +1257,7 @@ def _get_financieringsvormen() -> list:
 def dossier_nieuw():
     cfg = get_config()
     try:
-        tmpl_res = supabase.table("templates").select("id,name,description").order("name").execute()
+        tmpl_res = db.table("templates").select("id,name,description").order("name").execute()
         templates = tmpl_res.data or []
     except Exception:
         templates = []
@@ -1283,7 +1287,7 @@ def dossier_nieuw():
             return render_template("dossier_nieuw.html", cfg=cfg, templates=templates, now=datetime.now(), fin_vormen=fin_vormen, dossier_types=dossier_types)
 
         try:
-            dos_res = supabase.table("dossiers").insert({
+            dos_res = db.table("dossiers").insert({
                 "naam": naam,
                 "omschrijving": omschrijving or None,
                 "jaar": jaar,
@@ -1297,7 +1301,7 @@ def dossier_nieuw():
 
         for tid in template_ids:
             try:
-                supabase.table("invullingen").insert({
+                db.table("invullingen").insert({
                     "dossier_id": dossier_id,
                     "template_id": tid,
                     "waarden": {},
@@ -1317,7 +1321,7 @@ def dossier_nieuw():
 def dossier_detail(dossier_id):
     cfg = get_config()
     try:
-        dos_res = supabase.table("dossiers").select("*").eq("id", dossier_id).single().execute()
+        dos_res = db.table("dossiers").select("*").eq("id", dossier_id).single().execute()
     except Exception:
         abort(404)
 
@@ -1327,7 +1331,7 @@ def dossier_detail(dossier_id):
     dossier = dos_res.data
 
     try:
-        inv_res = supabase.table("invullingen").select("*").eq("dossier_id", dossier_id).execute()
+        inv_res = db.table("invullingen").select("*").eq("dossier_id", dossier_id).execute()
         invullingen_raw = inv_res.data or []
     except Exception:
         invullingen_raw = []
@@ -1336,7 +1340,7 @@ def dossier_detail(dossier_id):
     invullingen = []
     for inv in invullingen_raw:
         try:
-            tmpl_res = supabase.table("templates").select("*").eq("id", inv["template_id"]).single().execute()
+            tmpl_res = db.table("templates").select("*").eq("id", inv["template_id"]).single().execute()
             tmpl = tmpl_res.data or {}
         except Exception:
             tmpl = {}
@@ -1355,7 +1359,7 @@ def dossier_detail(dossier_id):
         })
 
     try:
-        tok_res = supabase.table("dossier_tokens").select("*").eq("dossier_id", dossier_id).order("created_at", desc=True).execute()
+        tok_res = db.table("dossier_tokens").select("*").eq("dossier_id", dossier_id).order("created_at", desc=True).execute()
         tokens = tok_res.data or []
     except Exception:
         tokens = []
@@ -1378,7 +1382,7 @@ def dossier_detail(dossier_id):
 @login_required
 def dossier_invulling_opslaan(dossier_id, inv_id):
     try:
-        inv_res = supabase.table("invullingen").select("*").eq("id", inv_id).eq("dossier_id", dossier_id).single().execute()
+        inv_res = db.table("invullingen").select("*").eq("id", inv_id).eq("dossier_id", dossier_id).single().execute()
     except Exception:
         abort(404)
 
@@ -1387,7 +1391,7 @@ def dossier_invulling_opslaan(dossier_id, inv_id):
 
     inv = inv_res.data
     try:
-        tmpl_res = supabase.table("templates").select("fields").eq("id", inv["template_id"]).single().execute()
+        tmpl_res = db.table("templates").select("fields").eq("id", inv["template_id"]).single().execute()
     except Exception:
         abort(404)
 
@@ -1410,7 +1414,7 @@ def dossier_invulling_opslaan(dossier_id, inv_id):
         waarden[key] = request.form.get(key, "")
 
     try:
-        supabase.table("invullingen").update({
+        db.table("invullingen").update({
             "waarden": waarden,
             "updated_at": datetime.utcnow().isoformat(),
         }).eq("id", inv_id).execute()
@@ -1425,7 +1429,7 @@ def dossier_invulling_opslaan(dossier_id, inv_id):
 @login_required
 def dossier_invulling_download(dossier_id, inv_id):
     try:
-        inv_res = supabase.table("invullingen").select("*").eq("id", inv_id).eq("dossier_id", dossier_id).single().execute()
+        inv_res = db.table("invullingen").select("*").eq("id", inv_id).eq("dossier_id", dossier_id).single().execute()
     except Exception:
         abort(404)
 
@@ -1438,7 +1442,7 @@ def dossier_invulling_download(dossier_id, inv_id):
         waarden = json.loads(waarden)
 
     try:
-        tmpl_res = supabase.table("templates").select("*").eq("id", inv["template_id"]).single().execute()
+        tmpl_res = db.table("templates").select("*").eq("id", inv["template_id"]).single().execute()
     except Exception:
         abort(404)
 
@@ -1450,10 +1454,10 @@ def dossier_invulling_download(dossier_id, inv_id):
 
     # Haal dossier + alle invullingen op voor systeemvariabelen
     try:
-        dos_res = supabase.table("dossiers").select("*").eq("id", dossier_id).single().execute()
-        alle_inv = supabase.table("invullingen").select("template_id").eq("dossier_id", dossier_id).execute()
+        dos_res = db.table("dossiers").select("*").eq("id", dossier_id).single().execute()
+        alle_inv = db.table("invullingen").select("template_id").eq("dossier_id", dossier_id).execute()
         template_ids = [i["template_id"] for i in (alle_inv.data or [])]
-        alle_tmpl = supabase.table("templates").select("id,name").in_("id", template_ids).execute()
+        alle_tmpl = db.table("templates").select("id,name").in_("id", template_ids).execute()
         tmpl_map = {t["id"]: t for t in (alle_tmpl.data or [])}
         templates_in_dossier = [tmpl_map[tid] for tid in template_ids if tid in tmpl_map]
         positie = next((i + 1 for i, tid in enumerate(template_ids) if tid == inv["template_id"]), None)
@@ -1502,7 +1506,7 @@ def dossier_invulling_toegang(dossier_id, inv_id):
         extern_toegang = "verborgen"
 
     try:
-        supabase.table("invullingen").update({
+        db.table("invullingen").update({
             "extern_toegang": extern_toegang,
             "updated_at": datetime.utcnow().isoformat(),
         }).eq("id", inv_id).eq("dossier_id", dossier_id).execute()
@@ -1521,7 +1525,7 @@ def dossier_status(dossier_id):
         status = "concept"
 
     try:
-        supabase.table("dossiers").update({
+        db.table("dossiers").update({
             "status": status,
             "updated_at": datetime.utcnow().isoformat(),
         }).eq("id", dossier_id).execute()
@@ -1552,7 +1556,7 @@ def dossier_bewerken(dossier_id):
         return redirect(url_for("dossier_detail", dossier_id=dossier_id))
 
     try:
-        supabase.table("dossiers").update({
+        db.table("dossiers").update({
             "naam": naam,
             "omschrijving": omschrijving or None,
             "jaar": jaar,
@@ -1572,9 +1576,9 @@ def dossier_bewerken(dossier_id):
 def dossier_verwijderen(dossier_id):
     try:
         # Verwijder gekoppelde tokens en invullingen eerst (foreign key)
-        supabase.table("dossier_tokens").delete().eq("dossier_id", dossier_id).execute()
-        supabase.table("invullingen").delete().eq("dossier_id", dossier_id).execute()
-        supabase.table("dossiers").delete().eq("id", dossier_id).execute()
+        db.table("dossier_tokens").delete().eq("dossier_id", dossier_id).execute()
+        db.table("invullingen").delete().eq("dossier_id", dossier_id).execute()
+        db.table("dossiers").delete().eq("id", dossier_id).execute()
         flash("Dossier verwijderd.", "success")
     except Exception as e:
         flash(f"Fout bij verwijderen: {e}", "error")
@@ -1586,7 +1590,7 @@ def dossier_verwijderen(dossier_id):
 @login_required
 def dossier_invulling_heropenen(dossier_id, inv_id):
     try:
-        supabase.table("invullingen").update({
+        db.table("invullingen").update({
             "extern_status": "open",
             "updated_at": datetime.utcnow().isoformat(),
         }).eq("id", inv_id).eq("dossier_id", dossier_id).execute()
@@ -1605,7 +1609,7 @@ def dossier_invulling_heropenen(dossier_id, inv_id):
 def get_preferences():
     user_id = session.get("user_id")
     try:
-        res = supabase.table("user_preferences").select("preferences").eq("user_id", user_id).execute()
+        res = db.table("user_preferences").select("preferences").eq("user_id", user_id).execute()
         prefs = res.data[0]["preferences"] if res.data else {}
     except Exception:
         prefs = {}
@@ -1622,12 +1626,12 @@ def set_preferences():
         return {"error": "Ongeldig formaat"}, 400
     try:
         # Haal bestaande preferences op en merge
-        res = supabase.table("user_preferences").select("preferences").eq("user_id", user_id).execute()
+        res = db.table("user_preferences").select("preferences").eq("user_id", user_id).execute()
         bestaand = res.data[0]["preferences"] if res.data else {}
         if not isinstance(bestaand, dict):
             bestaand = {}
         samengevoegd = {**bestaand, **nieuwe_prefs}
-        supabase.table("user_preferences").upsert(
+        db.table("user_preferences").upsert(
             {"user_id": user_id, "preferences": samengevoegd},
             on_conflict="user_id",
         ).execute()
@@ -1642,7 +1646,7 @@ def set_preferences():
 def dossier_token_aanmaken(dossier_id):
     omschrijving = request.form.get("omschrijving", "").strip() or "Extern dossier"
     try:
-        supabase.table("dossier_tokens").insert({
+        db.table("dossier_tokens").insert({
             "dossier_id": dossier_id,
             "omschrijving": omschrijving,
             "status": "actief",
@@ -1658,8 +1662,8 @@ def dossier_token_aanmaken(dossier_id):
 @login_required
 def dossier_token_intrekken(token_id):
     try:
-        tok = supabase.table("dossier_tokens").select("dossier_id").eq("id", token_id).single().execute()
-        supabase.table("dossier_tokens").update({"status": "ingetrokken"}).eq("id", token_id).execute()
+        tok = db.table("dossier_tokens").select("dossier_id").eq("id", token_id).single().execute()
+        db.table("dossier_tokens").update({"status": "ingetrokken"}).eq("id", token_id).execute()
         flash("Deellink ingetrokken.", "success")
         if tok.data:
             return redirect(url_for("dossier_detail", dossier_id=tok.data["dossier_id"]))
@@ -1672,9 +1676,9 @@ def dossier_token_intrekken(token_id):
 @login_required
 def dossier_token_verwijderen(token_id):
     try:
-        tok = supabase.table("dossier_tokens").select("dossier_id").eq("id", token_id).single().execute()
+        tok = db.table("dossier_tokens").select("dossier_id").eq("id", token_id).single().execute()
         dossier_id = tok.data["dossier_id"] if tok.data else None
-        supabase.table("dossier_tokens").delete().eq("id", token_id).execute()
+        db.table("dossier_tokens").delete().eq("id", token_id).execute()
         flash("Deellink verwijderd.", "success")
         if dossier_id:
             return redirect(url_for("dossier_detail", dossier_id=dossier_id))
@@ -1691,7 +1695,7 @@ def dossier_token_verwijderen(token_id):
 def dossier_extern(token_id):
     cfg = get_config()
     try:
-        tok_res = supabase.table("dossier_tokens").select("*").eq("id", token_id).single().execute()
+        tok_res = db.table("dossier_tokens").select("*").eq("id", token_id).single().execute()
     except Exception:
         abort(404)
 
@@ -1704,7 +1708,7 @@ def dossier_extern(token_id):
 
     dossier_id = token["dossier_id"]
     try:
-        dos_res = supabase.table("dossiers").select("*").eq("id", dossier_id).single().execute()
+        dos_res = db.table("dossiers").select("*").eq("id", dossier_id).single().execute()
     except Exception:
         abort(404)
 
@@ -1717,7 +1721,7 @@ def dossier_extern(token_id):
     dossier_afgesloten = dossier.get("status") == "afgerond"
 
     try:
-        inv_res = supabase.table("invullingen").select("*").eq("dossier_id", dossier_id).execute()
+        inv_res = db.table("invullingen").select("*").eq("dossier_id", dossier_id).execute()
         invullingen_raw = inv_res.data or []
     except Exception:
         invullingen_raw = []
@@ -1728,7 +1732,7 @@ def dossier_extern(token_id):
         if inv.get("extern_toegang", "verborgen") == "verborgen":
             continue
         try:
-            tmpl_res = supabase.table("templates").select("*").eq("id", inv["template_id"]).single().execute()
+            tmpl_res = db.table("templates").select("*").eq("id", inv["template_id"]).single().execute()
             tmpl = tmpl_res.data or {}
         except Exception:
             tmpl = {}
@@ -1782,7 +1786,7 @@ def dossier_extern(token_id):
 
             if not errors:
                 try:
-                    supabase.table("invullingen").update({
+                    db.table("invullingen").update({
                         "waarden": new_waarden,
                         "extern_status": "verzonden",
                         "updated_at": datetime.utcnow().isoformat(),
@@ -1820,9 +1824,9 @@ def dossier_extern(token_id):
 def dossier_extern_bedankt(token_id):
     cfg = get_config()
     try:
-        tok_res = supabase.table("dossier_tokens").select("dossier_id").eq("id", token_id).single().execute()
+        tok_res = db.table("dossier_tokens").select("dossier_id").eq("id", token_id).single().execute()
         if tok_res.data:
-            dos_res = supabase.table("dossiers").select("naam").eq("id", tok_res.data["dossier_id"]).single().execute()
+            dos_res = db.table("dossiers").select("naam").eq("id", tok_res.data["dossier_id"]).single().execute()
             dossier_naam = dos_res.data["naam"] if dos_res.data else ""
         else:
             dossier_naam = ""
@@ -1843,7 +1847,7 @@ def inzendingen_overzicht():
     # Haal alle invullingen op waarbij de externe partij iets heeft ingevuld
     # (extern_toegang != verborgen én waarden niet leeg)
     try:
-        inv_res = supabase.table("invullingen").select("*").neq("extern_toegang", "verborgen").execute()
+        inv_res = db.table("invullingen").select("*").neq("extern_toegang", "verborgen").execute()
         alle_invullingen = inv_res.data or []
     except Exception as e:
         flash(f"Fout bij ophalen inzendingen: {e}", "error")
@@ -1865,7 +1869,7 @@ def inzendingen_overzicht():
         dos_id = inv.get("dossier_id")
         if dos_id not in dossier_cache:
             try:
-                dos_res = supabase.table("dossiers").select("naam,status").eq("id", dos_id).single().execute()
+                dos_res = db.table("dossiers").select("naam,status").eq("id", dos_id).single().execute()
                 dossier_cache[dos_id] = dos_res.data or {}
             except Exception:
                 dossier_cache[dos_id] = {}
@@ -1873,7 +1877,7 @@ def inzendingen_overzicht():
         tmpl_id = inv.get("template_id")
         if tmpl_id not in template_cache:
             try:
-                tmpl_res = supabase.table("templates").select("name,fields").eq("id", tmpl_id).single().execute()
+                tmpl_res = db.table("templates").select("name,fields").eq("id", tmpl_id).single().execute()
                 template_cache[tmpl_id] = tmpl_res.data or {}
             except Exception:
                 template_cache[tmpl_id] = {}
@@ -1901,7 +1905,7 @@ def inzendingen_overzicht():
     user_id = session.get("user_id")
     if user_id:
         try:
-            supabase.table("inzendingen_gelezen").upsert({
+            db.table("inzendingen_gelezen").upsert({
                 "user_id": user_id,
                 "gezien_op": datetime.utcnow().isoformat(),
             }, on_conflict="user_id").execute()
