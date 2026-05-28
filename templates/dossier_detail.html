@@ -28,6 +28,16 @@
 
     <!-- ── Linkerkolom: Invullingen ── -->
     <div class="dossier-main">
+
+      <!-- Sjabloon toevoegen knop -->
+      {% if dossier.status != 'afgerond' %}
+      <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
+        <button type="button" class="btn btn-sm btn-outline" onclick="document.getElementById('modal-sjabloon-toevoegen').showModal()">
+          <i data-lucide="plus" style="width:14px;height:14px;vertical-align:-2px;"></i> Sjabloon toevoegen
+        </button>
+      </div>
+      {% endif %}
+
       {% if invullingen %}
         {% for inv in invullingen %}
           <div class="invulling-card" id="inv-{{ inv.id }}">
@@ -415,4 +425,32 @@ function copyDossierUrl(tokenId, url) {
   });
 }
 </script>
+
+<!-- Modal: Sjabloon toevoegen -->
+<dialog id="modal-sjabloon-toevoegen" style="border:none;border-radius:12px;padding:0;max-width:420px;width:100%;box-shadow:0 8px 40px rgba(0,0,0,.18);">
+  <form method="post" action="{{ url_for('dossier_sjabloon_toevoegen', dossier_id=dossier.id) }}" style="padding:24px 24px 20px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <strong style="font-size:15px;">Sjabloon toevoegen</strong>
+      <button type="button" onclick="document.getElementById('modal-sjabloon-toevoegen').close()" style="background:none;border:none;cursor:pointer;padding:4px;">
+        <i data-lucide="x" style="width:18px;height:18px;color:var(--muted);"></i>
+      </button>
+    </div>
+    <div class="form-group" style="margin-bottom:20px;">
+      <label class="form-label">Sjabloon(en)</label>
+      <select name="template_ids" multiple size="6" class="form-control" style="min-height:130px;" required>
+        {% for tmpl in all_templates %}
+          {% set already_linked = invullingen | selectattr('template.id', 'equalto', tmpl.id) | list | length > 0 %}
+          <option value="{{ tmpl.id }}" {% if already_linked %}disabled title="Al gekoppeld"{% endif %}>
+            {{ tmpl.name }}{% if already_linked %} (al gekoppeld){% endif %}
+          </option>
+        {% endfor %}
+      </select>
+      <div style="font-size:11px;color:var(--muted);margin-top:5px;">Houd Cmd/Ctrl ingedrukt om meerdere sjablonen te selecteren.</div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;">
+      <button type="button" class="btn btn-outline btn-sm" onclick="document.getElementById('modal-sjabloon-toevoegen').close()">Annuleren</button>
+      <button type="submit" class="btn btn-primary btn-sm">Toevoegen</button>
+    </div>
+  </form>
+</dialog>
 {% endblock %}

@@ -1384,6 +1384,12 @@ def dossier_detail(dossier_id):
     fin_vormen = _get_financieringsvormen()
     dossier_types = _get_dossier_types()
 
+    try:
+        all_templates_res = db.table("templates").select("id,name").order("name").execute()
+        all_templates = all_templates_res.data or []
+    except Exception:
+        all_templates = []
+
     return render_template(
         "dossier_detail.html",
         cfg=cfg,
@@ -1391,6 +1397,7 @@ def dossier_detail(dossier_id):
         invullingen=invullingen,
         tokens=tokens,
         fin_vormen=fin_vormen,
+        all_templates=all_templates,
         dossier_types=dossier_types,
     )
 
@@ -1435,6 +1442,51 @@ def dossier_invulling_opslaan(dossier_id, inv_id):
         flash("Invulling opgeslagen.", "success")
     except Exception as e:
         flash(f"Fout bij opslaan: {e}", "error")
+
+    return redirect(url_for("dossier_detail", dossier_id=dossier_id))
+
+
+@app.route("/dossier/<dossier_id>/sjabloon-toevoegen", methods=["POST"])
+@login_required
+def dossier_sjabloon_toevoegen(dossier_id):
+    try:
+        dos_res = db.table("dossiers").select("id").eq("id", dossier_id).single().execute()
+    except Exception:
+        abort(404)
+    if not dos_res.data:
+        abort(404)
+
+    template_ids = request.form.getlist("template_ids")
+    if not template_ids:
+        flash("Selecteer minimaal één sjabloon.", "error")
+        return redirect(url_for("dossier_detail", dossier_id=dossier_id))
+
+    # Haal bestaande template_ids op om duplicaten te voorkomen
+    try:
+        existing_res = db.table("invullingen").select("template_id").eq("dossier_id", dossier_id).execute()
+        existing_ids = {str(r["template_id"]) for r in (existing_res.data or [])}
+    except Exception:
+        existing_ids = set()
+
+    added = 0
+    for tid in template_ids:
+        if str(tid) in existing_ids:
+            continue
+        try:
+            db.table("invullingen").insert({
+                "dossier_id": dossier_id,
+                "template_id": tid,
+                "waarden": {},
+                "extern_toegang": "verborgen",
+            }).execute()
+            added += 1
+        except Exception as e:
+            flash(f"Fout bij toevoegen sjabloon: {e}", "error")
+
+    if added:
+        flash(f"{added} sjabloon{'en' if added != 1 else ''} toegevoegd.", "success")
+    else:
+        flash("Geselecteerde sjablonen waren al gekoppeld aan dit dossier.", "warning")
 
     return redirect(url_for("dossier_detail", dossier_id=dossier_id))
 
