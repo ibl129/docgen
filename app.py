@@ -1407,9 +1407,6 @@ def dossier_invulling_opslaan(dossier_id, inv_id):
 
     waarden = dict(existing_waarden)
     for field in fields:
-        # Only save fields that are intern (eigenaar != "extern")
-        if field.get("eigenaar") == "extern":
-            continue
         key = field["name"]
         waarden[key] = request.form.get(key, "")
 
