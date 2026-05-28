@@ -35,7 +35,7 @@
           </a>
           <a href="{{ url_for('sjablonen') }}" class="topbar-link {% if request.endpoint in ('sjablonen', 'admin_template_new', 'admin_template_edit', 'template_detail') %}active{% endif %}">Sjablonen</a>
           {% if session.get('user_role') == 'admin' %}
-            <a href="{{ url_for('admin') }}" class="topbar-link {% if request.endpoint and request.endpoint.startswith('admin') %}active{% endif %}">Beheer</a>
+            <a href="{{ url_for('admin') }}" class="topbar-link {% if request.endpoint in ('admin', 'admin_config') %}active{% endif %}">Beheer</a>
           {% endif %}
           <div class="topbar-sep"></div>
           <span class="topbar-user">{{ session.get('user_name', session.get('user_email', '')) }}</span>
