@@ -52,7 +52,7 @@
                   <span class="veld-dot veld-dot-invulbaar" title="Extern invulbaar" style="margin-left:2px;"></span>
                 {% endif %}
               </label>
-              {% set cur = gedeelde_waarden.get(field.name, '') %}
+              {% set cur = gedeelde_waarden[field.name] if field.name in gedeelde_waarden else '' %}
               {% if field.type == 'textarea' %}
                 <textarea id="dv_{{ field.name }}" name="dv_{{ field.name }}" class="form-control" rows="3" {% if dossier.status == 'afgerond' %}readonly{% endif %}>{{ cur }}</textarea>
               {% elif field.type == 'date' %}

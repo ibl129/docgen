@@ -1391,9 +1391,16 @@ def dossier_detail(dossier_id):
         all_templates = []
 
     # Verzamel unieke dossier-scope velden uit alle gekoppelde templates (op volgorde van eerste optreden)
-    gedeelde_waarden = dossier.get("gedeelde_waarden") or {}
-    if isinstance(gedeelde_waarden, str):
-        gedeelde_waarden = json.loads(gedeelde_waarden)
+    raw_gw = dossier.get("gedeelde_waarden")
+    if raw_gw is None:
+        gedeelde_waarden = {}
+    elif isinstance(raw_gw, str):
+        try:
+            gedeelde_waarden = json.loads(raw_gw)
+        except (json.JSONDecodeError, ValueError):
+            gedeelde_waarden = {}
+    else:
+        gedeelde_waarden = dict(raw_gw)  # zorg dat het een gewone Python dict is
     seen_names = set()
     dossier_velden = []
     for inv in invullingen:
