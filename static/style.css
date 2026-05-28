@@ -696,13 +696,32 @@ tbody tr:hover { background: #fafbfc; }
   border-radius: var(--radius-sm);
   padding: 14px 16px;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 20px 1fr 1fr;
   gap: 10px 14px;
   align-items: end;
 }
 
+.field-drag-handle {
+  grid-row: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  align-self: stretch;
+  padding-top: 18px;
+  opacity: 0.4;
+  transition: opacity 0.15s;
+}
+.field-drag-handle:hover { opacity: 1; }
+.field-drag-handle:active { cursor: grabbing; }
+
+.field-row-ghost {
+  opacity: 0.4;
+  background: var(--primary-light);
+}
+
 .field-row .field-options-row {
-  grid-column: 1 / -1;
+  grid-column: 2 / -1;
   display: flex;
   flex-wrap: wrap;
   gap: 10px;

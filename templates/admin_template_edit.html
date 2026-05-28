@@ -1,5 +1,9 @@
 {% extends "base.html" %}
 
+{% block head %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.3/Sortable.min.js"></script>
+{% endblock %}
+
 {% block title %}{% if mode == 'new' %}Nieuw sjabloon{% else %}Sjabloon bewerken{% endif %} — {{ cfg.tenant_name }}{% endblock %}
 
 {% block content %}
@@ -159,7 +163,11 @@
   function renderField(container, field, idx) {
     const row = document.createElement('div');
     row.className = 'field-row';
+    row.dataset.idx = idx;
     row.innerHTML = `
+      <div class="field-drag-handle" title="Versleep om te sorteren">
+        <i data-lucide="grip-vertical" style="width:15px;height:15px;color:var(--muted);"></i>
+      </div>
       <div>
         <label>Veldnaam (placeholder)</label>
         <input
@@ -227,7 +235,7 @@
           ><i data-lucide="x" style="width:14px;height:14px;"></i></button>
         </div>
       </div>
-      <div style="grid-column:1/-1;margin-top:-4px;">
+      <div style="grid-column:2/-1;margin-top:-4px;">
         <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted);display:block;margin-bottom:4px;">Toelichting voor invuller <span style="font-weight:400;">(optioneel)</span></label>
         <input
           type="text"
@@ -239,7 +247,7 @@
         >
       </div>
       ${field.type === 'date' ? `
-        <div style="grid-column:1/-1;margin-top:-4px;">
+        <div style="grid-column:2/-1;margin-top:-4px;">
           <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted);display:block;margin-bottom:4px;">Datumnotatie in document</label>
           <select
             class="form-control"
@@ -259,7 +267,7 @@
         </div>
       ` : ''}
       ${field.type === 'dropdown' ? `
-        <div style="grid-column:1/-1;margin-top:-4px;">
+        <div style="grid-column:2/-1;margin-top:-4px;">
           <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted);display:block;margin-bottom:4px;">Opties (kommagescheiden)</label>
           <input
             type="text"
@@ -313,6 +321,18 @@
 
   // Initial render
   render();
+
+  // Drag-and-drop sorteren via SortableJS
+  Sortable.create(document.getElementById('field-builder'), {
+    handle: '.field-drag-handle',
+    animation: 150,
+    ghostClass: 'field-row-ghost',
+    onEnd(evt) {
+      const moved = fields.splice(evt.oldIndex, 1)[0];
+      fields.splice(evt.newIndex, 0, moved);
+      render();
+    },
+  });
 
   // Scan placeholders
   const docxInput = document.getElementById('docx_file');
