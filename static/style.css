@@ -1229,7 +1229,8 @@ tbody tr:hover { background: #fafbfc; }
   background: var(--surface);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  padding: 24px;
+  padding: 0;
+  overflow: hidden;
 }
 
 .invulling-card-header {
@@ -1237,8 +1238,17 @@ tbody tr:hover { background: #fafbfc; }
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 20px;
   flex-wrap: wrap;
+  padding: 18px 24px;
+}
+
+.invulling-card-toggle:hover {
+  background: var(--bg);
+}
+
+.invulling-card-body {
+  padding: 0 24px 24px;
+  border-top: 1px solid var(--border);
 }
 
 .invulling-card-title {

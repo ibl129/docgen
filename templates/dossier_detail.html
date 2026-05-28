@@ -95,8 +95,9 @@
       {% if invullingen %}
         {% for inv in invullingen %}
           <div class="invulling-card" id="inv-{{ inv.id }}">
-            <div class="invulling-card-header">
+            <div class="invulling-card-header invulling-card-toggle" onclick="toggleInvulling('{{ inv.id }}')" style="cursor:pointer;">
               <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                <i data-lucide="chevron-down" class="inv-chevron" id="chev-{{ inv.id }}" style="width:16px;height:16px;flex-shrink:0;transition:transform 0.2s;{% if not loop.first %}transform:rotate(-90deg);{% endif %}"></i>
                 <span class="invulling-card-title">{{ inv.template.name if inv.template else '—' }}</span>
                 {% if inv.is_filled %}
                   <span class="badge badge-sealed"><i data-lucide="check" style="width:11px;height:11px;vertical-align:-1px;"></i> Opgeslagen</span>
@@ -106,7 +107,7 @@
                 {% if inv.extern_status == 'verzonden' %}
                   <span class="badge badge-invulbaar"><i data-lucide="send" style="width:10px;height:10px;vertical-align:-1px;"></i> Extern verzonden</span>
                   {% if dossier.status != 'afgerond' %}
-                    <form method="post" action="{{ url_for('dossier_invulling_heropenen', dossier_id=dossier.id, inv_id=inv.id) }}" style="margin:0;">
+                    <form method="post" action="{{ url_for('dossier_invulling_heropenen', dossier_id=dossier.id, inv_id=inv.id) }}" style="margin:0;" onclick="event.stopPropagation()">
                       <button type="submit" class="btn btn-xs btn-outline" title="Sta externe partij toe opnieuw aan te passen">
                         <i data-lucide="rotate-ccw" style="width:11px;height:11px;vertical-align:-1px;"></i> Heropenen
                       </button>
@@ -118,15 +119,17 @@
                 href="{{ url_for('dossier_invulling_download', dossier_id=dossier.id, inv_id=inv.id) }}"
                 class="btn btn-sm btn-secondary"
                 title="Download .docx"
+                onclick="event.stopPropagation()"
               >↓ Download</a>
             </div>
 
-            <div class="veld-legenda">
-              <span class="veld-dot veld-dot-intern" title="Alleen intern"></span><span>Intern</span>
-              <span class="veld-dot veld-dot-leesbaar" title="Extern leesbaar"></span><span>Leesbaar</span>
-              <span class="veld-dot veld-dot-invulbaar" title="Extern invulbaar"></span><span>Invulbaar</span>
-              <span class="veld-dot veld-dot-verborgen" title="Verborgen"></span><span>Verborgen</span>
-            </div>
+            <div class="invulling-card-body" id="body-{{ inv.id }}" {% if not loop.first %}style="display:none;"{% endif %}>
+              <div class="veld-legenda">
+                <span class="veld-dot veld-dot-intern" title="Alleen intern"></span><span>Intern</span>
+                <span class="veld-dot veld-dot-leesbaar" title="Extern leesbaar"></span><span>Leesbaar</span>
+                <span class="veld-dot veld-dot-invulbaar" title="Extern invulbaar"></span><span>Invulbaar</span>
+                <span class="veld-dot veld-dot-verborgen" title="Verborgen"></span><span>Verborgen</span>
+              </div>
 
             <form method="post" action="{{ url_for('dossier_invulling_opslaan', dossier_id=dossier.id, inv_id=inv.id) }}">
               {% set per_template_fields = inv.fields | rejectattr('scope', 'equalto', 'dossier') | list %}
@@ -233,6 +236,7 @@
                 </div>
               {% endif %}
             </form>
+            </div><!-- /invulling-card-body -->
           </div>
         {% endfor %}
       {% else %}
@@ -456,6 +460,14 @@ const OA_TYPES = {
   update();
 })();
 {% endif %}
+
+function toggleInvulling(invId) {
+  const body = document.getElementById('body-' + invId);
+  const chev = document.getElementById('chev-' + invId);
+  const open = body.style.display !== 'none';
+  body.style.display = open ? 'none' : '';
+  chev.style.transform = open ? 'rotate(-90deg)' : '';
+}
 
 function copyDossierUrl(tokenId, url) {
   navigator.clipboard.writeText(url).then(() => {
