@@ -143,6 +143,7 @@
                         {% elif field.type == 'number' %}
                           <input
                             type="number"
+                            step="any"
                             id="ef_{{ inv.id }}_{{ field.name }}"
                             name="{{ inv.id }}_{{ field.name }}"
                             class="form-control"

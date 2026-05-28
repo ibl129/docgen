@@ -92,6 +92,7 @@
                 {% elif field.type == 'number' %}
                   <input
                     type="number"
+                    step="any"
                     id="field_{{ field.name }}"
                     name="{{ field.name }}"
                     class="form-control"
