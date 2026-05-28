@@ -129,8 +129,9 @@
             </div>
 
             <form method="post" action="{{ url_for('dossier_invulling_opslaan', dossier_id=dossier.id, inv_id=inv.id) }}">
-              {% if inv.fields %}
-                {% for field in inv.fields %}
+              {% set per_template_fields = inv.fields | rejectattr('scope', 'equalto', 'dossier') | list %}
+              {% if per_template_fields %}
+                {% for field in per_template_fields %}
                   <div class="form-group">
                     <label class="form-label" for="f_{{ inv.id }}_{{ field.name }}">
                       {{ field.label or field.name }}
@@ -227,7 +228,7 @@
                 </button>
               {% else %}
                 <div class="empty-state" style="padding:16px;">
-                  <div class="empty-state-body">Dit sjabloon heeft nog geen velden.</div>
+                  <div class="empty-state-body">Alle velden van dit sjabloon zijn gedeeld en staan bovenaan.</div>
                 </div>
               {% endif %}
             </form>
