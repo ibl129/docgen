@@ -181,49 +181,51 @@
           oninput="updateField(${idx}, 'label', this.value)"
         >
       </div>
-      <div>
-        <label>Type</label>
-        <select class="form-control" onchange="updateField(${idx}, 'type', this.value)">
-          ${FIELD_TYPES.map(t =>
-            `<option value="${t.value}" ${field.type === t.value ? 'selected' : ''}>${t.label}</option>`
-          ).join('')}
-        </select>
-      </div>
-      <div>
-        <label>Verplicht</label>
-        <div style="padding-top:8px;">
-          <label class="form-check" style="cursor:pointer;">
-            <input
-              type="checkbox"
-              ${field.required ? 'checked' : ''}
-              onchange="updateField(${idx}, 'required', this.checked)"
-            >
-            <span style="font-size:13px;">Ja</span>
-          </label>
+      <div class="field-options-row">
+        <div class="field-opt-type">
+          <label>Type</label>
+          <select class="form-control" onchange="updateField(${idx}, 'type', this.value)">
+            ${FIELD_TYPES.map(t =>
+              `<option value="${t.value}" ${field.type === t.value ? 'selected' : ''}>${t.label}</option>`
+            ).join('')}
+          </select>
         </div>
-      </div>
-      <div>
-        <label>Eigenaar</label>
-        <select class="form-control" onchange="updateField(${idx}, 'eigenaar', this.value)">
-          <option value="" ${!field.eigenaar || field.eigenaar === '' ? 'selected' : ''}>Intern</option>
-          <option value="extern" ${field.eigenaar === 'extern' ? 'selected' : ''}>Extern</option>
-        </select>
-      </div>
-      <div>
-        <label title="Dossier-niveau: één keer invullen, geldt voor alle sjablonen in het dossier">Niveau</label>
-        <select class="form-control" onchange="updateField(${idx}, 'scope', this.value)">
-          <option value="" ${!field.scope || field.scope === '' ? 'selected' : ''}>Per sjabloon</option>
-          <option value="dossier" ${field.scope === 'dossier' ? 'selected' : ''}>Dossier (gedeeld)</option>
-        </select>
-      </div>
-      <div>
-        <label>&nbsp;</label>
-        <button
-          type="button"
-          class="field-remove"
-          onclick="removeField(${idx})"
-          title="Veld verwijderen"
-        ><i data-lucide="x" style="width:14px;height:14px;"></i></button>
+        <div>
+          <label>Eigenaar</label>
+          <select class="form-control" onchange="updateField(${idx}, 'eigenaar', this.value)">
+            <option value="" ${!field.eigenaar || field.eigenaar === '' ? 'selected' : ''}>Intern</option>
+            <option value="extern" ${field.eigenaar === 'extern' ? 'selected' : ''}>Extern</option>
+          </select>
+        </div>
+        <div>
+          <label title="Dossier-niveau: één keer invullen, geldt voor alle sjablonen in het dossier">Niveau</label>
+          <select class="form-control" onchange="updateField(${idx}, 'scope', this.value)">
+            <option value="" ${!field.scope || field.scope === '' ? 'selected' : ''}>Per sjabloon</option>
+            <option value="dossier" ${field.scope === 'dossier' ? 'selected' : ''}>Dossier (gedeeld)</option>
+          </select>
+        </div>
+        <div>
+          <label>Verplicht</label>
+          <div style="padding-top:8px;">
+            <label class="form-check" style="cursor:pointer;">
+              <input
+                type="checkbox"
+                ${field.required ? 'checked' : ''}
+                onchange="updateField(${idx}, 'required', this.checked)"
+              >
+              <span style="font-size:13px;">Ja</span>
+            </label>
+          </div>
+        </div>
+        <div class="field-opt-remove">
+          <label>&nbsp;</label>
+          <button
+            type="button"
+            class="field-remove"
+            onclick="removeField(${idx})"
+            title="Veld verwijderen"
+          ><i data-lucide="x" style="width:14px;height:14px;"></i></button>
+        </div>
       </div>
       <div style="grid-column:1/-1;margin-top:-4px;">
         <label style="font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted);display:block;margin-bottom:4px;">Toelichting voor invuller <span style="font-weight:400;">(optioneel)</span></label>
