@@ -140,34 +140,75 @@ def admin_required(f):
 # Word generation
 # ---------------------------------------------------------------------------
 
+def _merge_placeholder_runs(para, placeholder: str, key: str):
+    """
+    Als een placeholder gesplitst is over meerdere runs, normaliseer die naar één run.
+    De opmaak van de run die de veldnaam bevat (niet {{ of }}) wordt gebruikt.
+    Geeft de gemerge run terug, of None als de placeholder niet gesplitst aanwezig is.
+    """
+    runs = para.runs
+    full_text = "".join(r.text for r in runs)
+    if placeholder not in full_text:
+        return None
+
+    # Zoek de aaneengesloten reeks runs die samen de placeholder bevatten
+    start_idx = end_idx = None
+    accumulated = ""
+    for i, run in enumerate(runs):
+        accumulated += run.text
+        if placeholder in accumulated:
+            end_idx = i
+            # Ga terug om start te vinden
+            acc2 = ""
+            for j in range(i, -1, -1):
+                acc2 = runs[j].text + acc2
+                if placeholder in acc2:
+                    start_idx = j
+                    break
+            break
+
+    if start_idx is None:
+        return None
+
+    # Kies als carrier de run die de veldnaam bevat — niet {{ of }}
+    # Dat voorkomt dat de opmaak van {{ (die soms bold is als decoratie) erft.
+    carrier_idx = start_idx
+    for i in range(start_idx, end_idx + 1):
+        if key in runs[i].text:
+            carrier_idx = i
+            break
+
+    # Schrijf de volledige tekst van het bereik samen in de carrier-run,
+    # leeg de overige runs in het bereik
+    merged_text = "".join(r.text for r in runs[start_idx:end_idx + 1])
+    runs[carrier_idx].text = merged_text
+    for i in range(start_idx, end_idx + 1):
+        if i != carrier_idx:
+            runs[i].text = ""
+
+    return runs[carrier_idx]
+
+
 def _replace_in_paragraph(para, values: dict):
     """Replace placeholders in a paragraph, even when split across multiple runs."""
     for key, val in values.items():
         placeholder = f"{{{{{key}}}}}"
         if placeholder not in para.text:
             continue
-        # Fast path: placeholder fits in a single run — opmaak van die run blijft behouden
+        val_str = str(val) if val is not None else ""
+        # Fast path: placeholder zit volledig in één run
+        replaced = False
         for run in para.runs:
             if placeholder in run.text:
-                run.text = run.text.replace(placeholder, str(val) if val is not None else "")
-        if placeholder not in para.text:
-            continue
-        # Slow path: placeholder is gesplitst over meerdere runs.
-        # Zoek de eerste run die een deel van de placeholder bevat en gebruik die als drager
-        # zodat diens opmaak (bold/italic/underline) bewaard blijft.
-        full_text = "".join(r.text for r in para.runs)
-        if placeholder not in full_text:
-            continue
-        val_str = str(val) if val is not None else ""
-        new_text = full_text.replace(placeholder, val_str)
-        # Vind de eerste run die {{ of een deel van de placeholder bevat
-        carrier = 0
-        for i, run in enumerate(para.runs):
-            if run.text and ('{{' in run.text or key in run.text):
-                carrier = i
+                run.text = run.text.replace(placeholder, val_str)
+                replaced = True
                 break
-        for i, run in enumerate(para.runs):
-            run.text = new_text if i == carrier else ""
+        if replaced:
+            continue
+        # Slow path: normaliseer gesplitste runs naar één carrier-run, dan vervang
+        carrier = _merge_placeholder_runs(para, placeholder, key)
+        if carrier is not None:
+            carrier.text = carrier.text.replace(placeholder, val_str)
 
 
 SYSTEM_VARIABLES = [
