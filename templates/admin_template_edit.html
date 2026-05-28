@@ -210,6 +210,13 @@
         </select>
       </div>
       <div>
+        <label title="Dossier-niveau: één keer invullen, geldt voor alle sjablonen in het dossier">Niveau</label>
+        <select class="form-control" onchange="updateField(${idx}, 'scope', this.value)">
+          <option value="" ${!field.scope || field.scope === '' ? 'selected' : ''}>Per sjabloon</option>
+          <option value="dossier" ${field.scope === 'dossier' ? 'selected' : ''}>Dossier (gedeeld)</option>
+        </select>
+      </div>
+      <div>
         <label>&nbsp;</label>
         <button
           type="button"
@@ -293,7 +300,7 @@
   }
 
   document.getElementById('add-field-btn').addEventListener('click', () => {
-    fields.push({ name: '', label: '', type: 'text', required: false, options: '', eigenaar: '', hint: '' });
+    fields.push({ name: '', label: '', type: 'text', required: false, options: '', eigenaar: '', hint: '', scope: '' });
     render();
     // Focus the last name input
     setTimeout(() => {
@@ -348,7 +355,7 @@
         const nieuw = data.placeholders.filter(p => !bestaand.has(p));
 
         nieuw.forEach(p => {
-          fields.push({ name: p, label: '', type: 'text', required: false, options: '', eigenaar: '' });
+          fields.push({ name: p, label: '', type: 'text', required: false, options: '', eigenaar: '', scope: '' });
         });
         render();
 

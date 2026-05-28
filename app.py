@@ -1390,6 +1390,18 @@ def dossier_detail(dossier_id):
     except Exception:
         all_templates = []
 
+    # Verzamel unieke dossier-scope velden uit alle gekoppelde templates (op volgorde van eerste optreden)
+    gedeelde_waarden = dossier.get("gedeelde_waarden") or {}
+    if isinstance(gedeelde_waarden, str):
+        gedeelde_waarden = json.loads(gedeelde_waarden)
+    seen_names = set()
+    dossier_velden = []
+    for inv in invullingen:
+        for field in inv.get("fields", []):
+            if field.get("scope") == "dossier" and field["name"] not in seen_names:
+                seen_names.add(field["name"])
+                dossier_velden.append(field)
+
     return render_template(
         "dossier_detail.html",
         cfg=cfg,
@@ -1398,6 +1410,8 @@ def dossier_detail(dossier_id):
         tokens=tokens,
         fin_vormen=fin_vormen,
         all_templates=all_templates,
+        dossier_velden=dossier_velden,
+        gedeelde_waarden=gedeelde_waarden,
         dossier_types=dossier_types,
     )
 
@@ -1431,6 +1445,8 @@ def dossier_invulling_opslaan(dossier_id, inv_id):
 
     waarden = dict(existing_waarden)
     for field in fields:
+        if field.get("scope") == "dossier":
+            continue  # dossier-scope velden worden opgeslagen op dossier-niveau, niet per invulling
         key = field["name"]
         waarden[key] = request.form.get(key, "")
 
@@ -1440,6 +1456,39 @@ def dossier_invulling_opslaan(dossier_id, inv_id):
             "updated_at": datetime.utcnow().isoformat(),
         }).eq("id", inv_id).execute()
         flash("Invulling opgeslagen.", "success")
+    except Exception as e:
+        flash(f"Fout bij opslaan: {e}", "error")
+
+    return redirect(url_for("dossier_detail", dossier_id=dossier_id))
+
+
+@app.route("/dossier/<dossier_id>/gedeelde-waarden", methods=["POST"])
+@login_required
+def dossier_gedeelde_waarden_opslaan(dossier_id):
+    try:
+        dos_res = db.table("dossiers").select("gedeelde_waarden").eq("id", dossier_id).single().execute()
+    except Exception:
+        abort(404)
+    if not dos_res.data:
+        abort(404)
+
+    existing = dos_res.data.get("gedeelde_waarden") or {}
+    if isinstance(existing, str):
+        existing = json.loads(existing)
+
+    # Verwerk alle form-velden die met "dv_" beginnen (dossier-veld prefix)
+    nieuwe_waarden = dict(existing)
+    for key, val in request.form.items():
+        if key.startswith("dv_"):
+            field_name = key[3:]  # strip "dv_" prefix
+            nieuwe_waarden[field_name] = val
+
+    try:
+        db.table("dossiers").update({
+            "gedeelde_waarden": nieuwe_waarden,
+            "updated_at": datetime.utcnow().isoformat(),
+        }).eq("id", dossier_id).execute()
+        flash("Gedeelde gegevens opgeslagen.", "success")
     except Exception as e:
         flash(f"Fout bij opslaan: {e}", "error")
 
@@ -1541,7 +1590,11 @@ def dossier_invulling_download(dossier_id, inv_id):
         positie=positie,
         user_label=session.get("user_name", session.get("user_email", "")),
     )
-    waarden = {**system_vals, **waarden}
+    gedeelde = dossier.get("gedeelde_waarden") or {}
+    if isinstance(gedeelde, str):
+        gedeelde = json.loads(gedeelde)
+    # Volgorde: systeem < gedeeld (dossier-niveau) < per-invulling
+    waarden = {**system_vals, **gedeelde, **waarden}
 
     try:
         docx_bytes = supabase.storage.from_(SUPABASE_BUCKET).download(template["docx_path"])

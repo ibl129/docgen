@@ -29,6 +29,60 @@
     <!-- ── Linkerkolom: Invullingen ── -->
     <div class="dossier-main">
 
+      <!-- Gedeelde gegevens (dossier-scope velden) -->
+      {% if dossier_velden %}
+      <div class="card" style="margin-bottom:16px;">
+        <div class="invulling-card-header" style="cursor:default;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span class="invulling-card-title" style="display:flex;align-items:center;gap:7px;">
+              <i data-lucide="layers" style="width:15px;height:15px;color:var(--primary);flex-shrink:0;"></i>
+              Gedeelde gegevens
+            </span>
+            <span class="badge" style="background:var(--primary-light,#eff6ff);color:var(--primary);font-size:11px;">Geldt voor alle sjablonen</span>
+          </div>
+        </div>
+        <form method="post" action="{{ url_for('dossier_gedeelde_waarden_opslaan', dossier_id=dossier.id) }}" style="padding:16px 20px;">
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-bottom:14px;">
+            {% for field in dossier_velden %}
+            <div class="form-group" style="margin:0;">
+              <label class="form-label" for="dv_{{ field.name }}" style="display:flex;align-items:center;gap:5px;">
+                {{ field.label or field.name }}
+                {% if field.required %}<span class="required">*</span>{% endif %}
+                {% if field.eigenaar == 'extern' %}
+                  <span class="veld-dot veld-dot-invulbaar" title="Extern invulbaar" style="margin-left:2px;"></span>
+                {% endif %}
+              </label>
+              {% set cur = gedeelde_waarden.get(field.name, '') %}
+              {% if field.type == 'textarea' %}
+                <textarea id="dv_{{ field.name }}" name="dv_{{ field.name }}" class="form-control" rows="3" {% if dossier.status == 'afgerond' %}readonly{% endif %}>{{ cur }}</textarea>
+              {% elif field.type == 'date' %}
+                <input type="date" id="dv_{{ field.name }}" name="dv_{{ field.name }}" class="form-control" value="{{ cur }}" {% if dossier.status == 'afgerond' %}readonly{% endif %}>
+              {% elif field.type == 'dropdown' %}
+                <select id="dv_{{ field.name }}" name="dv_{{ field.name }}" class="form-control" {% if dossier.status == 'afgerond' %}disabled{% endif %}>
+                  <option value="">— kies —</option>
+                  {% for opt in (field.options or '').split(',') %}
+                    {% set o = opt.strip() %}
+                    {% if o %}<option value="{{ o }}" {% if cur == o %}selected{% endif %}>{{ o }}</option>{% endif %}
+                  {% endfor %}
+                </select>
+              {% else %}
+                <input type="{{ field.type or 'text' }}" id="dv_{{ field.name }}" name="dv_{{ field.name }}" class="form-control" value="{{ cur }}" {% if dossier.status == 'afgerond' %}readonly{% endif %}>
+              {% endif %}
+              {% if field.hint %}
+                <div style="font-size:11px;color:var(--muted);margin-top:3px;">{{ field.hint }}</div>
+              {% endif %}
+            </div>
+            {% endfor %}
+          </div>
+          {% if dossier.status != 'afgerond' %}
+          <div style="display:flex;justify-content:flex-end;">
+            <button type="submit" class="btn btn-primary btn-sm">Opslaan</button>
+          </div>
+          {% endif %}
+        </form>
+      </div>
+      {% endif %}
+
       <!-- Sjabloon toevoegen knop -->
       {% if dossier.status != 'afgerond' %}
       <div style="display:flex;justify-content:flex-end;margin-bottom:12px;">
