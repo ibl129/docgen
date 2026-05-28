@@ -489,6 +489,23 @@ def fill_template(docx_bytes: bytes, values: dict) -> bytes:
                 for para in cell.paragraphs:
                     _process_textarea(para, values)
 
+    # Stap 3: placeholders in kop- en voetteksten per sectie
+    for section in doc.sections:
+        for hdr_ftr in (
+            section.header, section.footer,
+            section.even_page_header, section.even_page_footer,
+            section.first_page_header, section.first_page_footer,
+        ):
+            if hdr_ftr is None:
+                continue
+            for para in hdr_ftr.paragraphs:
+                _process_textarea(para, values)
+            for table in hdr_ftr.tables:
+                for row in table.rows:
+                    for cell in row.cells:
+                        for para in cell.paragraphs:
+                            _process_textarea(para, values)
+
     buf = io.BytesIO()
     doc.save(buf)
     return buf.getvalue()
