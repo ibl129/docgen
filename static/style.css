@@ -696,21 +696,38 @@ tbody tr:hover { background: #fafbfc; }
   border-radius: var(--radius-sm);
   padding: 14px 16px;
   display: grid;
-  grid-template-columns: 1fr 1fr 160px 120px 120px 90px 36px;
-  gap: 10px 12px;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 14px;
   align-items: end;
 }
 
-@media (max-width: 900px) {
-  .field-row {
-    grid-template-columns: 1fr 1fr;
-  }
-  .field-row > div:nth-child(n+3) { grid-column: auto; }
-  .field-row .field-remove { justify-self: start; }
+.field-row .field-options-row {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: end;
+}
+
+.field-row .field-options-row > div {
+  flex: 0 0 auto;
+  min-width: 120px;
+}
+
+.field-row .field-options-row > div.field-opt-type {
+  flex: 1 1 160px;
+  max-width: 220px;
+}
+
+.field-row .field-options-row > div.field-opt-remove {
+  margin-left: auto;
+  min-width: auto;
 }
 
 @media (max-width: 640px) {
-  .field-row { grid-template-columns: 1fr; }
+  .field-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 .field-row label {
