@@ -76,8 +76,11 @@
         </div>
         <div id="scan-result" style="display:none;margin-top:8px;padding:10px 12px;background:var(--bg);border-radius:10px;font-size:13px;color:var(--muted);"></div>
         {% if mode == 'edit' and template.docx_path %}
-          <div class="form-hint" style="margin-top:4px;">
-            Huidig bestand: <code>{{ template.docx_path.split('/')[-1] }}</code>
+          <div class="form-hint" style="margin-top:6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <span>Huidig bestand: <code>{{ template.docx_path.split('/')[-1] }}</code></span>
+            <a href="{{ url_for('admin_template_download', template_id=template.id) }}" class="btn btn-outline btn-sm" style="white-space:nowrap;">
+              <i data-lucide="download" style="width:13px;height:13px;vertical-align:-2px;margin-right:4px;"></i>Download huidig bestand
+            </a>
           </div>
         {% endif %}
       </div>

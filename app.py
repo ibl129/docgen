@@ -1085,6 +1085,29 @@ def admin_template_edit(template_id):
     return render_template("admin_template_edit.html", cfg=cfg, template=template, fields=fields, mode="edit")
 
 
+@app.route("/admin/template/<template_id>/download-docx")
+@login_required
+def admin_template_download(template_id):
+    try:
+        tmpl = db.table("templates").select("name,docx_path").eq("id", template_id).single().execute()
+    except Exception:
+        abort(404)
+    if not tmpl.data or not tmpl.data.get("docx_path"):
+        abort(404)
+    try:
+        docx_bytes = supabase.storage.from_(SUPABASE_BUCKET).download(tmpl.data["docx_path"])
+    except Exception as e:
+        flash(f"Fout bij ophalen bestand: {e}", "error")
+        return redirect(url_for("admin_template_edit", template_id=template_id))
+    filename = f"{tmpl.data['name'].replace(' ', '_')}_template.docx"
+    return send_file(
+        io.BytesIO(docx_bytes),
+        mimetype="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        as_attachment=True,
+        download_name=filename,
+    )
+
+
 @app.route("/admin/template/<template_id>/delete", methods=["POST"])
 @login_required
 def admin_template_delete(template_id):
