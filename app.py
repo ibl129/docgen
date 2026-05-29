@@ -1408,12 +1408,26 @@ def dossier_detail(dossier_id):
         waarden = inv.get("waarden") or {}
         if isinstance(waarden, str):
             waarden = json.loads(waarden)
+        # is_filled: per-template velden ingevuld, of (als alle velden gedeeld zijn)
+        # de gedeelde waarden voor die velden aanwezig in gedeelde_waarden.
+        per_tmpl_fields = [f for f in fields if f.get("scope") != "dossier"]
+        dossier_scope_fields = [f for f in fields if f.get("scope") == "dossier"]
+        if per_tmpl_fields:
+            is_filled = any(str(waarden.get(f["name"], "")).strip() for f in per_tmpl_fields)
+        elif dossier_scope_fields:
+            # Sjabloon bestaat enkel uit gedeelde velden — kijk of die zijn ingevuld
+            raw_gw = dossier.get("gedeelde_waarden") or {}
+            if isinstance(raw_gw, str):
+                raw_gw = json.loads(raw_gw)
+            is_filled = any(str(raw_gw.get(f["name"], "")).strip() for f in dossier_scope_fields)
+        else:
+            is_filled = False
         invullingen.append({
             **inv,
             "template": tmpl,
             "fields": fields,
             "waarden": waarden,
-            "is_filled": any(str(v).strip() for v in waarden.values()),
+            "is_filled": is_filled,
         })
 
     try:
@@ -1467,6 +1481,15 @@ def dossier_detail(dossier_id):
 @app.route("/dossier/<dossier_id>/invulling/<inv_id>", methods=["POST"])
 @login_required
 def dossier_invulling_opslaan(dossier_id, inv_id):
+    # Blokkeer wijzigingen als dossier afgerond is
+    try:
+        dos_check = db.table("dossiers").select("status").eq("id", dossier_id).single().execute()
+        if dos_check.data and dos_check.data.get("status") == "afgerond":
+            flash("Dit dossier is afgerond en kan niet meer worden bewerkt.", "error")
+            return redirect(url_for("dossier_detail", dossier_id=dossier_id))
+    except Exception:
+        pass
+
     try:
         inv_res = db.table("invullingen").select("*").eq("id", inv_id).eq("dossier_id", dossier_id).single().execute()
     except Exception:
@@ -1514,11 +1537,15 @@ def dossier_invulling_opslaan(dossier_id, inv_id):
 @login_required
 def dossier_gedeelde_waarden_opslaan(dossier_id):
     try:
-        dos_res = db.table("dossiers").select("gedeelde_waarden").eq("id", dossier_id).single().execute()
+        dos_res = db.table("dossiers").select("gedeelde_waarden,status").eq("id", dossier_id).single().execute()
     except Exception:
         abort(404)
     if not dos_res.data:
         abort(404)
+
+    if dos_res.data.get("status") == "afgerond":
+        flash("Dit dossier is afgerond en kan niet meer worden bewerkt.", "error")
+        return redirect(url_for("dossier_detail", dossier_id=dossier_id))
 
     existing = dos_res.data.get("gedeelde_waarden") or {}
     if isinstance(existing, str):
