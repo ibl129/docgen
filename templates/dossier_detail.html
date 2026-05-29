@@ -31,7 +31,7 @@
 
       <!-- Gedeelde gegevens (dossier-scope velden) -->
       {% if dossier_velden %}
-      <div class="card" style="margin-bottom:16px;">
+      <div class="card" id="gedeelde-gegevens" style="margin-bottom:16px;">
         <div class="invulling-card-header" style="cursor:default;">
           <div style="display:flex;align-items:center;gap:10px;">
             <span class="invulling-card-title" style="display:flex;align-items:center;gap:7px;">
@@ -130,6 +130,19 @@
                 <span class="veld-dot veld-dot-invulbaar" title="Extern invulbaar"></span><span>Invulbaar</span>
                 <span class="veld-dot veld-dot-verborgen" title="Verborgen"></span><span>Verborgen</span>
               </div>
+
+            {% set gedeeld_in_template = inv.fields | selectattr('scope', 'equalto', 'dossier') | list %}
+            {% if gedeeld_in_template %}
+              <div style="margin-bottom:14px;padding:10px 14px;background:var(--primary-light,#eff6ff);border-radius:8px;font-size:12px;color:var(--primary);display:flex;align-items:flex-start;gap:8px;">
+                <i data-lucide="layers" style="width:13px;height:13px;flex-shrink:0;margin-top:1px;"></i>
+                <span>
+                  Dit sjabloon gebruikt
+                  {% if gedeeld_in_template | length == 1 %}de gedeelde variabele{% else %}de gedeelde variabelen{% endif %}
+                  {% for f in gedeeld_in_template %}<strong>{{ f.label or f.name }}</strong>{% if not loop.last %}, {% endif %}{% endfor %}.
+                  {% if gedeeld_in_template | length == 1 %}Deze wordt{% else %}Deze worden{% endif %} ingevuld bij <a href="#gedeelde-gegevens" style="color:var(--primary);font-weight:600;">Gedeelde gegevens</a> bovenaan.
+                </span>
+              </div>
+            {% endif %}
 
             <form method="post" action="{{ url_for('dossier_invulling_opslaan', dossier_id=dossier.id, inv_id=inv.id) }}">
               {% set per_template_fields = inv.fields | rejectattr('scope', 'equalto', 'dossier') | list %}
@@ -231,8 +244,8 @@
                   Opslaan
                 </button>
               {% else %}
-                <div class="empty-state" style="padding:16px;">
-                  <div class="empty-state-body">Alle velden van dit sjabloon zijn gedeeld en staan bovenaan.</div>
+                <div style="padding:4px 0 8px;font-size:13px;color:var(--muted);">
+                  Alle velden van dit sjabloon zijn gedeeld — zie bovenstaande verwijzing.
                 </div>
               {% endif %}
             </form>
