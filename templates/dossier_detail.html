@@ -32,8 +32,9 @@
       <!-- Gedeelde gegevens (dossier-scope velden) -->
       {% if dossier_velden %}
       <div class="card" id="gedeelde-gegevens" style="margin-bottom:16px;">
-        <div class="invulling-card-header" style="cursor:default;">
+        <div class="invulling-card-header invulling-card-toggle" onclick="toggleGedeeld()" style="cursor:pointer;">
           <div style="display:flex;align-items:center;gap:10px;">
+            <i data-lucide="chevron-down" class="inv-chevron" id="chev-gedeeld" style="width:16px;height:16px;flex-shrink:0;transition:transform 0.2s;"></i>
             <span class="invulling-card-title" style="display:flex;align-items:center;gap:7px;">
               <i data-lucide="layers" style="width:15px;height:15px;color:var(--primary);flex-shrink:0;"></i>
               Gedeelde gegevens
@@ -41,7 +42,7 @@
             <span class="badge" style="background:var(--primary-light,#eff6ff);color:var(--primary);font-size:11px;">Geldt voor alle sjablonen</span>
           </div>
         </div>
-        <form method="post" action="{{ url_for('dossier_gedeelde_waarden_opslaan', dossier_id=dossier.id) }}" style="padding:16px 20px;">
+        <form method="post" action="{{ url_for('dossier_gedeelde_waarden_opslaan', dossier_id=dossier.id) }}" id="body-gedeeld" style="padding:16px 20px;">
           <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-bottom:14px;">
             {% for field in dossier_velden %}
             <div class="form-group" style="margin:0;">
@@ -485,13 +486,47 @@ document.querySelectorAll('.gedeeld-notice').forEach(el => {
   });
 });
 
+// Open/dicht-status onthouden per dossier in localStorage.
+const DOSSIER_COLLAPSE_KEY = 'docgen.collapse.{{ dossier.id }}';
+
+function loadCollapseState() {
+  try { return JSON.parse(localStorage.getItem(DOSSIER_COLLAPSE_KEY)) || {}; }
+  catch (e) { return {}; }
+}
+function saveCollapseState(key, open) {
+  const state = loadCollapseState();
+  state[key] = open;
+  try { localStorage.setItem(DOSSIER_COLLAPSE_KEY, JSON.stringify(state)); } catch (e) {}
+}
+function applyCollapse(key, open) {
+  const body = document.getElementById('body-' + key);
+  const chev = document.getElementById('chev-' + key);
+  if (!body || !chev) return;
+  body.style.display = open ? '' : 'none';
+  chev.style.transform = open ? '' : 'rotate(-90deg)';
+}
+
 function toggleInvulling(invId) {
   const body = document.getElementById('body-' + invId);
-  const chev = document.getElementById('chev-' + invId);
-  const open = body.style.display !== 'none';
-  body.style.display = open ? 'none' : '';
-  chev.style.transform = open ? 'rotate(-90deg)' : '';
+  const open = body.style.display === 'none'; // wordt nu geopend
+  applyCollapse(invId, open);
+  saveCollapseState(invId, open);
 }
+
+function toggleGedeeld() {
+  const body = document.getElementById('body-gedeeld');
+  const open = body.style.display === 'none'; // wordt nu geopend
+  applyCollapse('gedeeld', open);
+  saveCollapseState('gedeeld', open);
+}
+
+// Herstel opgeslagen open/dicht-status bij laden; val terug op server-side default.
+(function restoreCollapseState() {
+  const state = loadCollapseState();
+  for (const key in state) {
+    applyCollapse(key, state[key]);
+  }
+})();
 
 function copyDossierUrl(tokenId, url) {
   navigator.clipboard.writeText(url).then(() => {
