@@ -1238,8 +1238,28 @@ tbody tr:hover { background: #fafbfc; }
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   padding: 18px 24px;
+}
+
+/* Linkergroep (chevron + titel + badges) vult de ruimte en mag krimpen,
+   zodat lange titels inkorten i.p.v. de Download-knop naar beneden te duwen. */
+.invulling-card-header > div:first-child {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Download-knop blijft altijd rechtsboven, krimpt niet en breekt niet af. */
+.invulling-card-header > .btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+/* Op smalle schermen mag de Download-knop wél onder de titel zakken. */
+@media (max-width: 600px) {
+  .invulling-card-header {
+    flex-wrap: wrap;
+  }
 }
 
 .invulling-card-toggle:hover {

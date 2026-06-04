@@ -1444,7 +1444,9 @@ def dossier_detail(dossier_id):
                 raw_gw = json.loads(raw_gw)
             is_filled = any(str(raw_gw.get(f["name"], "")).strip() for f in dossier_scope_fields)
         else:
-            is_filled = False
+            # Sjabloon zonder enige in te vullen velden (alleen vaste tekst /
+            # systeemvariabelen) — er valt niets in te vullen, dus altijd klaar.
+            is_filled = True
         invullingen.append({
             **inv,
             "template": tmpl,
