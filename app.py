@@ -478,17 +478,18 @@ def _process_conditionals(paragraphs_parent, values: dict):
                     # Strip alleen de tag uit deze alinea en laat de rest met rust.
                     _strip_tag_from_para(p, open_tag_re)
                     i += 1
+                elif keep:
+                    # Blok behouden: strip alleen de tags, bewaar alle alinea's én de
+                    # tekst die op de openings-/sluitingsalinea naast de tag staat
+                    # (bijv. "{{#if _fin_zvw}}a. Cliënt met wijkverpleging:").
+                    _strip_tag_from_para(p, open_tag_re)
+                    _strip_tag_from_para(paras[close_idx], _ENDIF_RE)
+                    i = close_idx + 1
                 else:
-                    # Gebalanceerd blok over meerdere alinea's: openingsalinea altijd
-                    # weg, tussenliggende alinea's bewaren/verwijderen, sluitingstag strippen.
-                    to_delete.add(id(p))
-                    for k in range(i + 1, close_idx):
-                        if not keep:
-                            to_delete.add(id(paras[k]))
-                    if keep:
-                        _strip_tag_from_para(paras[close_idx], _ENDIF_RE)
-                    else:
-                        to_delete.add(id(paras[close_idx]))
+                    # Blok verwerpen: verwijder de openings- en sluitingsalinea én alles
+                    # ertussen volledig.
+                    for k in range(i, close_idx + 1):
+                        to_delete.add(id(paras[k]))
                     i = close_idx + 1
         else:
             i += 1
