@@ -196,19 +196,19 @@ def _replace_in_paragraph(para, values: dict):
         if placeholder not in para.text:
             continue
         val_str = str(val) if val is not None else ""
-        # Fast path: placeholder zit volledig in één run
-        replaced = False
+        # Fast path: vervang ELK voorkomen dat volledig in één run zit.
+        # Niet stoppen na de eerste: dezelfde placeholder kan meermaals in
+        # dezelfde alinea voorkomen (elk in een eigen run).
         for run in para.runs:
             if placeholder in run.text:
                 run.text = run.text.replace(placeholder, val_str)
-                replaced = True
+        # Slow path: resterende voorkomens zijn gesplitst over meerdere runs.
+        # Blijf normaliseren+vervangen zolang er nog een gesplitst voorkomen is.
+        while placeholder in para.text:
+            carrier = _merge_placeholder_runs(para, placeholder, key)
+            if carrier is None:
                 break
-        if replaced:
-            continue
-        # Slow path: normaliseer gesplitste runs naar één carrier-run, dan vervang
-        carrier = _merge_placeholder_runs(para, placeholder, key)
-        if carrier is not None:
-            carrier.text = carrier.text.replace(placeholder, val_str)
+            carrier.text = carrier.text.replace(placeholder, val_str, 1)
 
 
 SYSTEM_VARIABLES = [
