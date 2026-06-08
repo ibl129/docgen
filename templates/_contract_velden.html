@@ -1,0 +1,58 @@
+{# Herbruikbaar contract-looptijdblok. Verwacht optioneel `dossier` (voor voorvulling)
+   en `gebruikers` (accounthouder-dropdown). Gebruikt in dossier_nieuw + dossier_detail. #}
+<fieldset style="border:1px solid var(--border,#e5e7eb);border-radius:8px;padding:14px 16px;margin-bottom:16px;">
+  <legend style="font-size:13px;font-weight:600;padding:0 6px;">Contract-looptijd</legend>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+    <div class="form-group" style="margin-bottom:10px;">
+      <label class="form-label" for="ingangsdatum">
+        <span class="veld-dot veld-dot-intern" style="vertical-align:middle;margin-right:2px;"></span>
+        Ingangsdatum
+      </label>
+      <input type="date" id="ingangsdatum" name="ingangsdatum" class="form-control"
+             value="{{ dossier.ingangsdatum if dossier and dossier.ingangsdatum else '' }}">
+    </div>
+    <div class="form-group" style="margin-bottom:10px;">
+      <label class="form-label" for="einddatum">
+        <span class="veld-dot veld-dot-intern" style="vertical-align:middle;margin-right:2px;"></span>
+        Einddatum
+      </label>
+      <input type="date" id="einddatum" name="einddatum" class="form-control"
+             value="{{ dossier.einddatum if dossier and dossier.einddatum else '' }}">
+    </div>
+  </div>
+
+  <div class="form-group" style="margin-bottom:10px;">
+    <label class="form-label" for="accounthouder_id">
+      <span class="veld-dot veld-dot-intern" style="vertical-align:middle;margin-right:2px;"></span>
+      Accounthouder (ontvangt de signalen)
+    </label>
+    <select id="accounthouder_id" name="accounthouder_id" class="form-control">
+      <option value="">— geen —</option>
+      {% for g in gebruikers %}
+        <option value="{{ g.id }}" {% if dossier and dossier.accounthouder_id == g.id %}selected{% endif %}>
+          {{ g.naam }}{% if g.email and g.email != g.naam %} ({{ g.email }}){% endif %}
+        </option>
+      {% endfor %}
+    </select>
+    {% if not gebruikers %}
+      <p class="form-hint" style="font-size:12px;color:var(--text-muted,#6b7280);margin-top:4px;">
+        Geen accounts gevonden — signalen worden pas verstuurd als een accounthouder met e-mailadres gekoppeld is.
+      </p>
+    {% endif %}
+  </div>
+
+  <div class="form-group" style="margin-bottom:0;">
+    <label class="form-label" for="signaal_dagen">
+      <span class="veld-dot veld-dot-intern" style="vertical-align:middle;margin-right:2px;"></span>
+      Signaalmomenten (dagen vóór einddatum)
+    </label>
+    <input type="text" id="signaal_dagen" name="signaal_dagen" class="form-control"
+           placeholder="bijv. 60, 30, 7"
+           value="{{ dossier.signaal_dagen | join(', ') if dossier and dossier.signaal_dagen else '' }}">
+    <p class="form-hint" style="font-size:12px;color:var(--text-muted,#6b7280);margin-top:4px;">
+      Komma-gescheiden. Op elk moment krijgt de accounthouder één e-mail. Op de einddatum wordt het
+      dossier automatisch op ‘verlopen’ gezet met een laatste signaal.
+    </p>
+  </div>
+</fieldset>

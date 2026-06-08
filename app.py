@@ -3,9 +3,11 @@ import io
 import json
 import uuid
 import time
+import smtplib
 import urllib.request
+from email.message import EmailMessage
 from functools import wraps
-from datetime import datetime
+from datetime import datetime, date
 
 from flask import (
     Flask, render_template, request, redirect, url_for,
@@ -84,6 +86,65 @@ def get_app_footer() -> dict:
         return fallback
 
 
+# ---------------------------------------------------------------------------
+# Contract-signalen: e-mail + pure beslissingslogica
+# ---------------------------------------------------------------------------
+
+def send_email(to: str, subject: str, body: str) -> bool:
+    """Verstuur een e-mail via SMTP (env-config). Zonder SMTP_HOST: alleen loggen.
+    Geeft True bij verzonden, False bij loggen/fout."""
+    host = os.environ.get("SMTP_HOST", "").strip()
+    mail_from = os.environ.get("MAIL_FROM", "noreply@leidersinzicht.nl").strip()
+    if not host or not to:
+        app.logger.info(f"[mail-dev] aan={to!r} onderwerp={subject!r}\n{body}")
+        return False
+    msg = EmailMessage()
+    msg["From"] = mail_from
+    msg["To"] = to
+    msg["Subject"] = subject
+    msg.set_content(body)
+    try:
+        port = int(os.environ.get("SMTP_PORT", "587"))
+        user = os.environ.get("SMTP_USER", "").strip()
+        pw = os.environ.get("SMTP_PASS", "").strip()
+        with smtplib.SMTP(host, port, timeout=20) as s:
+            s.starttls()
+            if user:
+                s.login(user, pw)
+            s.send_message(msg)
+        return True
+    except Exception as e:
+        app.logger.warning(f"[mail] verzenden mislukt aan {to!r}: {e}")
+        return False
+
+
+def bepaal_contract_signalen(vandaag: date, einddatum, signaal_dagen, status: str, reeds_verstuurd) -> list:
+    """Pure beslissingsfunctie. Geeft de NU te versturen signalen terug als lijst van
+    dicts {soort, dagen} — `dagen` is None bij een verloop-signaal.
+
+    - vandaag: date van vandaag
+    - einddatum: date of None
+    - signaal_dagen: lijst ints (dagen vóór einddatum)
+    - status: huidige dossierstatus
+    - reeds_verstuurd: set van (soort, dagen|None) die al verstuurd zijn
+    """
+    if not einddatum:
+        return []
+    uit = []
+    # Vooraf-signalen: vandaag == einddatum - d dagen, nog niet verstuurd.
+    for d in (signaal_dagen or []):
+        try:
+            d = int(d)
+        except (TypeError, ValueError):
+            continue
+        if (einddatum - vandaag).days == d and ("vooraf", d) not in reeds_verstuurd:
+            uit.append({"soort": "vooraf", "dagen": d})
+    # Verloop-signaal: op/na einddatum, nog niet verlopen, nog niet verstuurd.
+    if vandaag >= einddatum and status != "verlopen" and ("verlopen", None) not in reeds_verstuurd:
+        uit.append({"soort": "verlopen", "dagen": None})
+    return uit
+
+
 def get_ongelezen_inzendingen_count(user_id: str) -> int:
     """Aantal door externe partij verzonden invullingen na de laatste keer dat de gebruiker de inzendingen-pagina bezocht."""
     try:
@@ -106,11 +167,39 @@ def get_ongelezen_inzendingen_count(user_id: str) -> int:
 # Auth helpers
 # ---------------------------------------------------------------------------
 
+def get_aflopende_contracten(binnen_dagen: int = 60) -> list:
+    """Dossiers waarvan het contract binnen `binnen_dagen` afloopt of al verlopen is.
+    Gesorteerd op einddatum (eerst aflopend). Geeft per dossier ook `dagen_resterend`."""
+    from datetime import date, timedelta
+    vandaag = date.today()
+    grens = vandaag + timedelta(days=binnen_dagen)
+    try:
+        res = (db.table("dossiers")
+               .select("id,naam,einddatum,status,accounthouder_naam,accounthouder_email")
+               .not_.is_("einddatum", "null")
+               .lte("einddatum", grens.isoformat())
+               .order("einddatum")
+               .execute())
+        rows = res.data or []
+    except Exception:
+        return []
+    out = []
+    for r in rows:
+        try:
+            ed = date.fromisoformat(r["einddatum"])
+        except (ValueError, TypeError):
+            continue
+        r["dagen_resterend"] = (ed - vandaag).days
+        out.append(r)
+    return out
+
+
 @app.context_processor
 def inject_globals():
     user_id = session.get("user_id")
     return {
         "ongelezen_inzendingen": get_ongelezen_inzendingen_count(user_id) if user_id else 0,
+        "aflopende_contracten_count": len(get_aflopende_contracten()) if user_id else 0,
         "app_footer": get_app_footer(),
     }
 
@@ -1335,6 +1424,104 @@ def dossiers_overzicht():
     return render_template("dossiers.html", cfg=cfg, dossiers=dossier_list, view_mode=view_mode)
 
 
+@app.route("/contracten")
+@login_required
+def contracten_overzicht():
+    """Overzicht van aflopende en verlopen contracten."""
+    cfg = get_config()
+    contracten = get_aflopende_contracten(binnen_dagen=90)
+    return render_template("contracten.html", cfg=cfg, contracten=contracten)
+
+
+@app.route("/cron/contract-signalen")
+def cron_contract_signalen():
+    """Dagelijkse cron: verstuur aflopen-signalen + zet verlopen contracten op 'verlopen'.
+    Beveiligd met CRON_SECRET_KEY (query ?key= of header X-Cron-Key). Idempotent via
+    contract_signalen-logboek; meerdere keren per dag draaien stuurt geen dubbele mails."""
+    secret = os.environ.get("CRON_SECRET_KEY", "")
+    given = request.args.get("key", "") or request.headers.get("X-Cron-Key", "")
+    if not secret or given != secret:
+        abort(403)
+
+    cfg = get_config()
+    tenant = cfg.get("tenant_name", "DocGen")
+    vandaag = date.today()
+    gemaild = 0
+    verlopen_gezet = 0
+
+    try:
+        res = db.table("dossiers").select(
+            "id,naam,einddatum,status,signaal_dagen,accounthouder_email,accounthouder_naam"
+        ).not_.is_("einddatum", "null").execute()
+        dossiers = res.data or []
+    except Exception as e:
+        return Response(json.dumps({"error": str(e)}), status=500, mimetype="application/json")
+
+    for d in dossiers:
+        try:
+            einddatum = date.fromisoformat(d["einddatum"])
+        except (ValueError, TypeError):
+            continue
+
+        # Reeds verstuurde signalen voor dit dossier ophalen.
+        try:
+            log = db.table("contract_signalen").select("soort,dagen_vooraf").eq("dossier_id", d["id"]).execute().data or []
+        except Exception:
+            log = []
+        reeds = {(r["soort"], r["dagen_vooraf"] if r["soort"] == "vooraf" else None) for r in log}
+
+        signalen = bepaal_contract_signalen(
+            vandaag, einddatum, d.get("signaal_dagen") or [], d.get("status", ""), reeds
+        )
+
+        for sig in signalen:
+            email = (d.get("accounthouder_email") or "").strip()
+            naam = d.get("accounthouder_naam") or "accounthouder"
+            if sig["soort"] == "vooraf":
+                onderwerp = f"[{tenant}] Contract '{d['naam']}' loopt af over {sig['dagen']} dagen"
+                tekst = (f"Beste {naam},\n\nHet contract in dossier '{d['naam']}' loopt af op "
+                         f"{d['einddatum']} (over {sig['dagen']} dagen).\n\nOverweeg tijdig of het "
+                         f"verlengd of opnieuw opgesteld moet worden.\n\n— {tenant}")
+            else:
+                onderwerp = f"[{tenant}] Contract '{d['naam']}' is verlopen"
+                tekst = (f"Beste {naam},\n\nHet contract in dossier '{d['naam']}' is verlopen per "
+                         f"{d['einddatum']}.\n\nStel het opnieuw op voor de volgende periode of laat "
+                         f"het vervallen.\n\n— {tenant}")
+
+            if email:
+                send_email(email, onderwerp, tekst)
+            else:
+                app.logger.info(f"[contract-signaal] geen accounthouder-e-mail voor dossier {d['id']}: {onderwerp}")
+
+            # Log het signaal (idempotentie). Bij verlopen: ook status bijwerken.
+            try:
+                db.table("contract_signalen").insert({
+                    "dossier_id": d["id"],
+                    "soort": sig["soort"],
+                    "dagen_vooraf": sig["dagen"],
+                    "verstuurd_naar": email or None,
+                }).execute()
+            except Exception as e:
+                app.logger.warning(f"[contract-signaal] log mislukt voor {d['id']}: {e}")
+
+            if sig["soort"] == "vooraf":
+                gemaild += 1
+            else:
+                verlopen_gezet += 1
+                try:
+                    db.table("dossiers").update({
+                        "status": "verlopen",
+                        "updated_at": datetime.utcnow().isoformat(),
+                    }).eq("id", d["id"]).execute()
+                except Exception as e:
+                    app.logger.warning(f"[contract-signaal] status-update mislukt voor {d['id']}: {e}")
+
+    return Response(
+        json.dumps({"datum": vandaag.isoformat(), "vooraf_gemaild": gemaild, "verlopen_gezet": verlopen_gezet}),
+        mimetype="application/json",
+    )
+
+
 def _get_dossier_types() -> list:
     """Geeft lijst van {id, naam, beschrijving} dossier-types terug, of [] als geen geconfigureerd."""
     try:
@@ -1360,6 +1547,54 @@ def _get_financieringsvormen() -> list:
         return ["Zvw", "Wlz", "Wmo", "Jeugdwet", "Overig"]
 
 
+def _get_gebruikers() -> list:
+    """Lijst {id, email, naam} van bekende accounts, voor de accounthouder-dropdown."""
+    try:
+        users_res = supabase_admin.auth.admin.list_users()
+        raw = users_res if isinstance(users_res, list) else []
+        out = []
+        for u in raw:
+            meta = u.user_metadata or {}
+            out.append({
+                "id": str(u.id),
+                "email": u.email or "",
+                "naam": meta.get("name", "") or (u.email or ""),
+            })
+        return sorted(out, key=lambda x: x["naam"].lower())
+    except Exception:
+        return []
+
+
+def _parse_signaal_dagen(raw: str) -> list:
+    """Parse '60, 30, 7' → [60, 30, 7] (gesorteerd aflopend, uniek, alleen positieve ints)."""
+    dagen = set()
+    for stuk in (raw or "").replace(";", ",").split(","):
+        stuk = stuk.strip()
+        if not stuk:
+            continue
+        try:
+            d = int(stuk)
+        except ValueError:
+            continue
+        if d > 0:
+            dagen.add(d)
+    return sorted(dagen, reverse=True)
+
+
+def _accounthouder_velden(gebruiker_id: str, gebruikers: list) -> dict:
+    """Geef de op te slaan accounthouder-velden voor een gekozen gebruiker-id."""
+    if not gebruiker_id:
+        return {"accounthouder_id": None, "accounthouder_email": None, "accounthouder_naam": None}
+    match = next((g for g in gebruikers if g["id"] == gebruiker_id), None)
+    if not match:
+        return {"accounthouder_id": gebruiker_id, "accounthouder_email": None, "accounthouder_naam": None}
+    return {
+        "accounthouder_id": match["id"],
+        "accounthouder_email": match["email"] or None,
+        "accounthouder_naam": match["naam"] or None,
+    }
+
+
 @app.route("/dossier/nieuw", methods=["GET", "POST"])
 @login_required
 def dossier_nieuw():
@@ -1371,6 +1606,12 @@ def dossier_nieuw():
         templates = []
     fin_vormen = _get_financieringsvormen()
     dossier_types = _get_dossier_types()
+    gebruikers = _get_gebruikers()
+
+    def _render():
+        return render_template("dossier_nieuw.html", cfg=cfg, templates=templates,
+                               now=datetime.now(), fin_vormen=fin_vormen,
+                               dossier_types=dossier_types, gebruikers=gebruikers)
 
     if request.method == "POST":
         naam = request.form.get("naam", "").strip()
@@ -1380,6 +1621,10 @@ def dossier_nieuw():
         vormen = request.form.getlist("financieringsvorm")
         financieringsvorm = ", ".join(sorted(v.strip() for v in vormen if v.strip())) or None
         oa_type = request.form.get("oa_type", "").strip() or None
+        ingangsdatum = request.form.get("ingangsdatum", "").strip() or None
+        einddatum = request.form.get("einddatum", "").strip() or None
+        signaal_dagen = _parse_signaal_dagen(request.form.get("signaal_dagen", ""))
+        accounthouder = _accounthouder_velden(request.form.get("accounthouder_id", "").strip(), gebruikers)
 
         try:
             jaar = int(jaar_raw) if jaar_raw else None
@@ -1388,11 +1633,11 @@ def dossier_nieuw():
 
         if not naam:
             flash("Naam is verplicht.", "error")
-            return render_template("dossier_nieuw.html", cfg=cfg, templates=templates, now=datetime.now(), fin_vormen=fin_vormen, dossier_types=dossier_types)
+            return _render()
 
         if not template_ids:
             flash("Selecteer minimaal één sjabloon.", "error")
-            return render_template("dossier_nieuw.html", cfg=cfg, templates=templates, now=datetime.now(), fin_vormen=fin_vormen, dossier_types=dossier_types)
+            return _render()
 
         try:
             dos_res = db.table("dossiers").insert({
@@ -1401,11 +1646,15 @@ def dossier_nieuw():
                 "jaar": jaar,
                 "financieringsvorm": financieringsvorm,
                 "oa_type": oa_type,
+                "ingangsdatum": ingangsdatum,
+                "einddatum": einddatum,
+                "signaal_dagen": signaal_dagen,
+                **accounthouder,
             }).execute()
             dossier_id = dos_res.data[0]["id"]
         except Exception as e:
             flash(f"Fout bij aanmaken dossier: {e}", "error")
-            return render_template("dossier_nieuw.html", cfg=cfg, templates=templates, now=datetime.now(), fin_vormen=fin_vormen, dossier_types=dossier_types)
+            return _render()
 
         for tid in template_ids:
             try:
@@ -1421,7 +1670,7 @@ def dossier_nieuw():
         flash("Dossier aangemaakt.", "success")
         return redirect(url_for("dossier_detail", dossier_id=dossier_id))
 
-    return render_template("dossier_nieuw.html", cfg=cfg, templates=templates, now=datetime.now(), fin_vormen=fin_vormen, dossier_types=dossier_types)
+    return _render()
 
 
 @app.route("/dossier/<dossier_id>")
@@ -1527,6 +1776,7 @@ def dossier_detail(dossier_id):
         dossier_velden=dossier_velden,
         gedeelde_waarden=gedeelde_waarden,
         dossier_types=dossier_types,
+        gebruikers=_get_gebruikers(),
     )
 
 
@@ -1791,6 +2041,10 @@ def dossier_bewerken(dossier_id):
     vormen = request.form.getlist("financieringsvorm")
     financieringsvorm = ", ".join(sorted(v.strip() for v in vormen if v.strip())) or None
     oa_type = request.form.get("oa_type", "").strip() or None
+    ingangsdatum = request.form.get("ingangsdatum", "").strip() or None
+    einddatum = request.form.get("einddatum", "").strip() or None
+    signaal_dagen = _parse_signaal_dagen(request.form.get("signaal_dagen", ""))
+    accounthouder = _accounthouder_velden(request.form.get("accounthouder_id", "").strip(), _get_gebruikers())
 
     try:
         jaar = int(jaar_raw) if jaar_raw else None
@@ -1808,6 +2062,10 @@ def dossier_bewerken(dossier_id):
             "jaar": jaar,
             "financieringsvorm": financieringsvorm,
             "oa_type": oa_type,
+            "ingangsdatum": ingangsdatum,
+            "einddatum": einddatum,
+            "signaal_dagen": signaal_dagen,
+            **accounthouder,
             "updated_at": datetime.utcnow().isoformat(),
         }).eq("id", dossier_id).execute()
         flash("Dossier bijgewerkt.", "success")
@@ -1830,6 +2088,62 @@ def dossier_verwijderen(dossier_id):
         flash(f"Fout bij verwijderen: {e}", "error")
         return redirect(url_for("dossier_detail", dossier_id=dossier_id))
     return redirect(url_for("dossiers_overzicht"))
+
+
+@app.route("/dossier/<dossier_id>/dupliceren", methods=["POST"])
+@login_required
+def dossier_dupliceren(dossier_id):
+    """Kopieer een dossier inclusief alle invullingen + waarden naar een nieuw
+    concept-dossier, zodat een komende contractperiode start met de eerder ingevulde
+    gegevens. Looptijd-datums worden bewust leeg gelaten (nieuwe periode); externe
+    tokens worden niet meegekopieerd."""
+    try:
+        src = db.table("dossiers").select("*").eq("id", dossier_id).single().execute().data
+    except Exception:
+        abort(404)
+    if not src:
+        abort(404)
+
+    try:
+        inv_res = db.table("invullingen").select("*").eq("dossier_id", dossier_id).execute()
+        invullingen = inv_res.data or []
+    except Exception:
+        invullingen = []
+
+    try:
+        nieuw = db.table("dossiers").insert({
+            "naam": f"{src.get('naam', '')} (kopie)".strip(),
+            "omschrijving": src.get("omschrijving"),
+            "jaar": src.get("jaar"),
+            "financieringsvorm": src.get("financieringsvorm"),
+            "oa_type": src.get("oa_type"),
+            "gedeelde_waarden": src.get("gedeelde_waarden") or {},
+            # Contract-instellingen meenemen, maar de looptijd zelf leeg laten.
+            "accounthouder_id": src.get("accounthouder_id"),
+            "accounthouder_email": src.get("accounthouder_email"),
+            "accounthouder_naam": src.get("accounthouder_naam"),
+            "signaal_dagen": src.get("signaal_dagen") or [],
+            "status": "concept",
+        }).execute()
+        nieuw_id = nieuw.data[0]["id"]
+    except Exception as e:
+        flash(f"Fout bij dupliceren dossier: {e}", "error")
+        return redirect(url_for("dossier_detail", dossier_id=dossier_id))
+
+    for inv in invullingen:
+        try:
+            db.table("invullingen").insert({
+                "dossier_id": nieuw_id,
+                "template_id": inv.get("template_id"),
+                "waarden": inv.get("waarden") or {},
+                "extern_toegang": "verborgen",
+                "extern_status": "open",
+            }).execute()
+        except Exception as e:
+            flash(f"Fout bij kopiëren invulling: {e}", "error")
+
+    flash("Dossier gedupliceerd. Pas de looptijd aan voor de nieuwe periode.", "success")
+    return redirect(url_for("dossier_detail", dossier_id=nieuw_id))
 
 
 @app.route("/dossier/<dossier_id>/invulling/<inv_id>/heropenen", methods=["POST"])

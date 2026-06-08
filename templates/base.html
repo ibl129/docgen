@@ -33,6 +33,9 @@
           <a href="{{ url_for('inzendingen_overzicht') }}" class="topbar-link {% if request.endpoint == 'inzendingen_overzicht' %}active{% endif %}">
             Inzendingen{% if ongelezen_inzendingen > 0 %}<span class="nav-badge">{{ ongelezen_inzendingen }}</span>{% endif %}
           </a>
+          <a href="{{ url_for('contracten_overzicht') }}" class="topbar-link {% if request.endpoint == 'contracten_overzicht' %}active{% endif %}">
+            Contracten{% if aflopende_contracten_count > 0 %}<span class="nav-badge">{{ aflopende_contracten_count }}</span>{% endif %}
+          </a>
           <a href="{{ url_for('sjablonen') }}" class="topbar-link {% if request.endpoint in ('sjablonen', 'admin_template_new', 'admin_template_edit', 'template_detail') %}active{% endif %}">Sjablonen</a>
           {% if session.get('user_role') == 'admin' %}
             <a href="{{ url_for('admin') }}" class="topbar-link {% if request.endpoint in ('admin', 'admin_config') %}active{% endif %}">Beheer</a>

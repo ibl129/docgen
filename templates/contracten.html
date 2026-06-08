@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Contracten — {{ cfg.tenant_name }}{% endblock %}
+
+{% block content %}
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1 class="page-title">Aflopende contracten</h1>
+      <p class="page-subtitle">Dossiers waarvan het contract binnenkort afloopt of al verlopen is.</p>
+    </div>
+  </div>
+
+  {% if contracten %}
+    <div class="card" style="padding:0;overflow:hidden;">
+      <table>
+        <thead>
+          <tr>
+            <th>Dossier</th>
+            <th>Einddatum</th>
+            <th>Resterend</th>
+            <th>Accounthouder</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in contracten %}
+            <tr>
+              <td>
+                <a href="{{ url_for('dossier_detail', dossier_id=c.id) }}" style="font-weight:500;">{{ c.naam }}</a>
+                <div style="font-size:12px;margin-top:2px;">
+                  <span class="badge badge-dossier-{{ c.status or 'concept' }}" style="font-size:11px;">
+                    {% if c.status == 'verlopen' %}Verlopen{% elif c.status == 'afgerond' %}Afgerond{% else %}Concept{% endif %}
+                  </span>
+                </div>
+              </td>
+              <td style="color:var(--text);">{{ c.einddatum }}</td>
+              <td>
+                {% if c.dagen_resterend < 0 %}
+                  <span style="color:var(--danger,#dc2626);font-weight:600;">{{ -c.dagen_resterend }} dagen verlopen</span>
+                {% elif c.dagen_resterend == 0 %}
+                  <span style="color:var(--danger,#dc2626);font-weight:600;">loopt vandaag af</span>
+                {% else %}
+                  over {{ c.dagen_resterend }} dagen
+                {% endif %}
+              </td>
+              <td style="color:var(--text);">
+                {{ c.accounthouder_naam or '—' }}
+                {% if c.accounthouder_email %}
+                  <div style="font-size:12px;color:var(--muted);">{{ c.accounthouder_email }}</div>
+                {% endif %}
+              </td>
+              <td style="text-align:right;">
+                {% if c.status == 'verlopen' %}
+                  <form method="post" action="{{ url_for('dossier_dupliceren', dossier_id=c.id) }}" style="margin:0;display:inline;"
+                        onsubmit="return confirm('Dossier dupliceren voor een nieuwe contractperiode?')">
+                    <button type="submit" class="btn btn-xs btn-outline">Opnieuw opstellen</button>
+                  </form>
+                {% endif %}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="card" style="padding:32px;text-align:center;color:var(--muted);">
+      Geen aflopende of verlopen contracten.
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
