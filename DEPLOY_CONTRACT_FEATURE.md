@@ -7,6 +7,15 @@ op productie (Render + Supabase) te activeren.
 Voer `supabase_schema_v14.sql` uit in de **Supabase SQL-editor** (er is geen runner).
 Dit voegt de contract-velden op `dossiers` toe + de tabel `contract_signalen`.
 
+> **LET OP — GRANT vereist.** v14 bevat nu `GRANT ALL ON TABLE contract_signalen TO service_role;`.
+> Zonder die GRANT faalt elke insert/select op de tabel met "permission denied" (PostgREST draait
+> als de service_role Postgres-rol, en RLS alleen is niet genoeg). Symptoom: het signaal-logboek
+> blijft leeg en **vooraf-mails worden elke dag opnieuw verstuurd**. Als je v14 al draaide vóór
+> deze regel erin stond, voer dan los uit:
+> ```sql
+> GRANT ALL ON TABLE contract_signalen TO service_role;
+> ```
+
 ## 2. Env-vars op Render
 Zet (Render → service `docgen` → Environment):
 - `CRON_SECRET_KEY` — lang willekeurig geheim (beveiligt de cron-route).

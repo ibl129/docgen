@@ -34,3 +34,10 @@ DROP POLICY IF EXISTS "service_role_all" ON contract_signalen;
 CREATE POLICY "service_role_all" ON contract_signalen
     USING (auth.role() = 'service_role')
     WITH CHECK (auth.role() = 'service_role');
+
+-- GRANT is NAAST RLS nodig: PostgREST (supabase-py) draait queries als de service_role
+-- Postgres-rol, en die rol moet tabelrechten hebben. Zonder dit faalt elke insert/select
+-- met "permission denied for table contract_signalen" — de signaal-idempotentie werkt dan
+-- niet (vooraf-mails zouden elke dag opnieuw verstuurd worden). De andere tabellen kregen
+-- deze GRANT al bij aanmaak; nieuwe tabellen niet automatisch.
+GRANT ALL ON TABLE contract_signalen TO service_role;
