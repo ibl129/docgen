@@ -667,7 +667,7 @@ def template_download(template_id):
     values = {**system_vals, **values}
 
     try:
-        docx_bytes = supabase.storage.from_(SUPABASE_BUCKET).download(template["docx_path"])
+        docx_bytes = db.storage.from_(SUPABASE_BUCKET).download(template["docx_path"])
     except Exception as e:
         flash(f"Fout bij ophalen sjabloonbestand: {e}", "error")
         return redirect(url_for("template_detail", template_id=template_id))
@@ -763,7 +763,7 @@ def token_download(token_id):
     values = {**system_vals, **values}
 
     try:
-        docx_bytes = supabase.storage.from_(SUPABASE_BUCKET).download(template["docx_path"])
+        docx_bytes = db.storage.from_(SUPABASE_BUCKET).download(template["docx_path"])
     except Exception as e:
         flash(f"Fout bij ophalen sjabloonbestand: {e}", "error")
         return redirect(url_for("template_detail", template_id=token["template_id"]))
@@ -993,7 +993,7 @@ def admin_template_new():
         storage_path = f"templates/{uuid.uuid4()}.docx"
 
         try:
-            supabase.storage.from_(SUPABASE_BUCKET).upload(
+            db.storage.from_(SUPABASE_BUCKET).upload(
                 storage_path,
                 file_bytes,
                 file_options={"content-type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"},
@@ -1060,14 +1060,14 @@ def admin_template_edit(template_id):
             file_bytes = docx_file.read()
             storage_path = f"templates/{uuid.uuid4()}.docx"
             try:
-                supabase.storage.from_(SUPABASE_BUCKET).upload(
+                db.storage.from_(SUPABASE_BUCKET).upload(
                     storage_path,
                     file_bytes,
                     file_options={"content-type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"},
                 )
                 # Delete old file
                 try:
-                    supabase.storage.from_(SUPABASE_BUCKET).remove([template["docx_path"]])
+                    db.storage.from_(SUPABASE_BUCKET).remove([template["docx_path"]])
                 except Exception:
                     pass
                 update_data["docx_path"] = storage_path
@@ -1095,7 +1095,7 @@ def admin_template_download(template_id):
     if not tmpl.data or not tmpl.data.get("docx_path"):
         abort(404)
     try:
-        docx_bytes = supabase.storage.from_(SUPABASE_BUCKET).download(tmpl.data["docx_path"])
+        docx_bytes = db.storage.from_(SUPABASE_BUCKET).download(tmpl.data["docx_path"])
     except Exception as e:
         flash(f"Fout bij ophalen bestand: {e}", "error")
         return redirect(url_for("admin_template_edit", template_id=template_id))
@@ -1115,7 +1115,7 @@ def admin_template_delete(template_id):
         tmpl = db.table("templates").select("docx_path").eq("id", template_id).single().execute()
         if tmpl.data:
             try:
-                supabase.storage.from_(SUPABASE_BUCKET).remove([tmpl.data["docx_path"]])
+                db.storage.from_(SUPABASE_BUCKET).remove([tmpl.data["docx_path"]])
             except Exception:
                 pass
         db.table("templates").delete().eq("id", template_id).execute()
@@ -1697,7 +1697,7 @@ def dossier_invulling_download(dossier_id, inv_id):
     waarden = {**system_vals, **gedeelde, **waarden}
 
     try:
-        docx_bytes = supabase.storage.from_(SUPABASE_BUCKET).download(template["docx_path"])
+        docx_bytes = db.storage.from_(SUPABASE_BUCKET).download(template["docx_path"])
     except Exception as e:
         flash(f"Fout bij ophalen sjabloonbestand: {e}", "error")
         return redirect(url_for("dossier_detail", dossier_id=dossier_id))
