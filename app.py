@@ -299,9 +299,11 @@ from docx.oxml import OxmlElement
 from copy import deepcopy
 import lxml.etree as _etree
 
-_IF_RE    = _re.compile(r'\{\{#if\s+(\w+)\}\}')
-_IFNOT_RE = _re.compile(r'\{\{#ifnot\s+(\w+)\}\}')
-_ENDIF_RE = _re.compile(r'\{\{/if(?:not)?\}\}')
+_IF_RE    = _re.compile(r'\{\{\s*#if\s+(\w+)\s*\}\}')
+_IFNOT_RE = _re.compile(r'\{\{\s*#ifnot\s+(\w+)\s*\}\}')
+# Sluitingstag tolerant: extra slashes ({{//if}}) en witruimte worden ook herkend,
+# zodat een typefout in het sjabloon niet leidt tot een ongebalanceerd blok.
+_ENDIF_RE = _re.compile(r'\{\{\s*/+\s*if(?:not)?\s*\}\}')
 
 
 def _para_full_text(para) -> str:
@@ -437,33 +439,41 @@ def _process_conditionals(paragraphs_parent, values: dict):
                     to_delete.add(id(p))
                 i += 1
             else:
-                # Patroon 2: openingstag-alinea altijd verwijderen
-                to_delete.add(id(p))
-                i += 1
-
+                # Patroon 2: opening op deze alinea, sluiting (mogelijk) verderop.
+                # Zoek EERST de matchende sluitingstag op zonder iets te wijzigen —
+                # zo voorkomen we dat een ongebalanceerde/foutieve tag de rest van
+                # het document opslokt.
+                close_idx = None
                 depth = 1
-                while i < len(paras) and depth > 0:
-                    inner = paras[i]
-                    inner_text = "".join(t.text or "" for t in inner.iter(qn('w:t')))
-
-                    has_open  = bool(_IF_RE.search(inner_text) or _IFNOT_RE.search(inner_text))
-                    has_close = bool(_ENDIF_RE.search(inner_text))
-
-                    if has_open:
+                j = i + 1
+                while j < len(paras):
+                    jt = "".join(t.text or "" for t in paras[j].iter(qn('w:t')))
+                    if _IF_RE.search(jt) or _IFNOT_RE.search(jt):
                         depth += 1
-                    if has_close:
+                    if _ENDIF_RE.search(jt):
                         depth -= 1
                         if depth == 0:
-                            # Sluitingstag: strip de tag, bewaar of verwijder de alinea
-                            if keep:
-                                _strip_tag_from_para(inner, _ENDIF_RE)
-                            else:
-                                to_delete.add(id(inner))
-                            i += 1
+                            close_idx = j
                             break
-                    if not keep and not has_close:
-                        to_delete.add(id(inner))
+                    j += 1
+
+                if close_idx is None:
+                    # Geen sluitingstag gevonden: losse/foutieve openingstag.
+                    # Strip alleen de tag uit deze alinea en laat de rest met rust.
+                    _strip_tag_from_para(p, open_tag_re)
                     i += 1
+                else:
+                    # Gebalanceerd blok over meerdere alinea's: openingsalinea altijd
+                    # weg, tussenliggende alinea's bewaren/verwijderen, sluitingstag strippen.
+                    to_delete.add(id(p))
+                    for k in range(i + 1, close_idx):
+                        if not keep:
+                            to_delete.add(id(paras[k]))
+                    if keep:
+                        _strip_tag_from_para(paras[close_idx], _ENDIF_RE)
+                    else:
+                        to_delete.add(id(paras[close_idx]))
+                    i = close_idx + 1
         else:
             i += 1
 
