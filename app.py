@@ -384,18 +384,34 @@ def _insert_paragraph_after(ref_para, text: str, source_para, remove_spacing: bo
 
 def _strip_tag_from_para(p_elem, pattern):
     """Verwijder alle tekst die matcht met pattern uit de runs van een alinea-element.
-    Werkt ook als de tag gesplitst is over meerdere w:t elementen."""
+    Werkt ook als de tag gesplitst is over meerdere w:t elementen.
+
+    Belangrijk: de resterende tekst wordt terugverdeeld over de OORSPRONKELIJKE
+    w:t-elementen op volgorde (niet alles in het eerste element gepropt). Zo blijven
+    tussenliggende elementen zoals <w:tab/> en <w:br/> op hun relatieve plek staan."""
     t_elems = list(p_elem.iter(qn('w:t')))
+    if not t_elems:
+        return
+    # Bereken per element de [start, eind)-positie in de samengevoegde tekst
+    spans = []
+    pos = 0
+    for t in t_elems:
+        txt = t.text or ""
+        spans.append((pos, pos + len(txt)))
+        pos += len(txt)
     full = "".join(t.text or "" for t in t_elems)
     if not pattern.search(full):
         return
-    new_full = pattern.sub('', full)
-    # Schrijf gecombineerde tekst naar het eerste t-element, leeg de rest
-    if t_elems:
-        t_elems[0].text = new_full
-        t_elems[0].set('{http://www.w3.org/XML/1998/namespace}space', 'preserve')
-        for t in t_elems[1:]:
-            t.text = ""
+    # Verzamel de tekenposities die door de match(es) worden verwijderd
+    removed = bytearray(len(full))
+    for m in pattern.finditer(full):
+        for k in range(m.start(), m.end()):
+            removed[k] = 1
+    # Herbouw elk w:t-element met alleen de niet-verwijderde tekens van zijn eigen span
+    for t, (s, e) in zip(t_elems, spans):
+        kept = "".join(full[k] for k in range(s, e) if not removed[k])
+        t.text = kept
+        t.set('{http://www.w3.org/XML/1998/namespace}space', 'preserve')
 
 
 def _process_conditionals(paragraphs_parent, values: dict):
